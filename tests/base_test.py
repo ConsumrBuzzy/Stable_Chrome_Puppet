@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, Tuple, Union
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
 # Import ChromePuppet and ChromeConfig from core
-from core.browser import ChromePuppet
+from core.browser.puppet import ChromePuppet
 from core.config import ChromeConfig
 
 class BaseTest(unittest.TestCase):

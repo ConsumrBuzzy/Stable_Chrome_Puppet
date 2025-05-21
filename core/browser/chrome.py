@@ -7,11 +7,14 @@ driver management, and comprehensive error handling.
 """
 import os
 import platform
+import re
+import shutil
 import subprocess
 import sys
-import time
+import urllib.request
+import zipfile
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Union, Tuple, Callable, TypeVar
+from typing import Optional, List, Dict, Any, Union, Tuple, Callable, TypeVar
 
 # Selenium imports
 from selenium import webdriver
@@ -22,35 +25,24 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import (
-    WebDriverException,
-    TimeoutException,
-    NoSuchElementException
-)
-
-# Local imports
-from utils.driver_manager import ChromeDriverManager as LocalChromeDriverManager
+from selenium.common.exceptions import WebDriverException
 
 # Local imports
 from .base import BaseBrowser, retry_on_failure
-from .exceptions import (
-    BrowserError,
-    BrowserNotInitializedError,
-    NavigationError,
-    ElementNotFoundError,
-    ScreenshotError
-)
+from .exceptions import BrowserError
 from ..config import ChromeConfig
+from ..utils.logger import get_logger
 
 # Type variable for generic web elements
 WebElementT = TypeVar('WebElementT', bound=WebElement)
 
 class ChromeBrowser(BaseBrowser):
     """
-    Chrome browser implementation using Selenium WebDriver.
+    Enhanced Chrome browser implementation with improved version management
+    and architecture detection.
     
-    This class provides a high-level interface for interacting with Chrome,
-    including navigation, element interaction, and browser management.
+    This class provides a robust interface for Chrome automation with
+    automatic driver management and comprehensive error handling.
     """
     
     def __init__(self, config: ChromeConfig, logger=None):
@@ -63,11 +55,101 @@ class ChromeBrowser(BaseBrowser):
         Raises:
             BrowserError: If there's an issue initializing the browser
         """
-        super().__init__(config, logger)
+        super().__init__(config, logger or get_logger(__name__))
         self.config = config
         self.driver: Optional[WebDriver] = None
         self._service = None
         self._is_running = False
+        self._chrome_version = None
+        self._chrome_architecture = None
+    
+    def _detect_chrome_version(self) -> str:
+        """Detect installed Chrome version.
+        
+        Returns:
+            str: Chrome version string (e.g., "112.0.5615.49")
+            
+        Raises:
+            BrowserError: If Chrome version cannot be detected
+        """
+        try:
+            if platform.system() == "Windows":
+                # Try registry first
+                try:
+                    import winreg
+                    reg_path = r"SOFTWARE\Google\Chrome\BLBeacon"
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, reg_path) as key:
+                        version = winreg.QueryValueEx(key, "version")[0]
+                        self._logger.info(f"Detected Chrome version from registry: {version}")
+                        return version
+                except Exception:
+                    pass
+
+                # Fallback to command line
+                chrome_paths = [
+                    r"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+                    r"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+                ]
+                
+                for path in chrome_paths:
+                    if os.path.exists(path):
+                        output = subprocess.check_output([path, "--version"]).decode()
+                        version_match = re.search(r"(\d+\.\d+\.\d+\.\d+)", output)
+                        if version_match:
+                            version = version_match.group(1)
+                            self._logger.info(f"Detected Chrome version from binary: {version}")
+                            return version
+            else:
+                # Linux/Mac
+                output = subprocess.check_output(["google-chrome", "--version"]).decode()
+                version_match = re.search(r"(\d+\.\d+\.\d+\.\d+)", output)
+                if version_match:
+                    version = version_match.group(1)
+                    self._logger.info(f"Detected Chrome version: {version}")
+                    return version
+
+            raise BrowserError("Could not detect Chrome version")
+
+        except Exception as e:
+            self._logger.error(f"Error detecting Chrome version: {e}")
+            raise BrowserError(f"Failed to detect Chrome version: {e}") from e
+
+    def _detect_chrome_architecture(self) -> str:
+        """Detect Chrome architecture (32-bit or 64-bit).
+        
+        Returns:
+            str: '32' or '64' indicating the architecture
+            
+        Raises:
+            BrowserError: If architecture cannot be determined
+        """
+        try:
+            if platform.system() == "Windows":
+                chrome_paths = [
+                    r"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+                    r"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+                ]
+                
+                for path in chrome_paths:
+                    if os.path.exists(path):
+                        # Check if path contains "Program Files (x86)" for 32-bit
+                        if "Program Files (x86)" in path:
+                            self._chrome_architecture = '32'
+                        else:
+                            # Default to 64-bit for Program Files
+                            self._chrome_architecture = '64'
+                        
+                        self._logger.info(f"Detected Chrome architecture: {self._chrome_architecture}-bit")
+                        return self._chrome_architecture
+            
+            # Default to 64-bit for non-Windows or if detection fails
+            self._chrome_architecture = '64'
+            return self._chrome_architecture
+            
+        except Exception as e:
+            self._logger.error(f"Error detecting Chrome architecture: {e}")
+            # Default to 64-bit if detection fails
+            return '64'
     
     def _get_chrome_driver_path(self) -> str:
         """
@@ -80,93 +162,114 @@ class ChromeBrowser(BaseBrowser):
             BrowserError: If ChromeDriver cannot be found or installed
         """
         try:
-            # Use our local ChromeDriverManager to handle driver installation
-            driver_manager = LocalChromeDriverManager(logger=self._logger)
-            driver_path = driver_manager.setup_chromedriver()
+            # Detect Chrome version and architecture
+            chrome_version = self._detect_chrome_version()
+            chrome_arch = self._detect_chrome_architecture()
+            
+            # Determine ChromeDriver URL based on version and architecture
+            base_version = chrome_version.split('.')[0]
+            driver_url = f"https://chromedriver.storage.googleapis.com/{base_version}.0.0/chromedriver_win{chrome_arch}.zip"
+            
+            # Set up paths
+            script_dir = Path(__file__).parent.parent.parent
+            driver_dir = script_dir / "bin" / "drivers"
+            driver_dir.mkdir(parents=True, exist_ok=True)
+            
+            driver_path = driver_dir / "chromedriver.exe"
+            
+            # Download ChromeDriver if it doesn't exist or is incompatible
+            if not driver_path.exists() or not self._is_chromedriver_compatible(driver_path, chrome_version):
+                self._download_chromedriver(driver_url, driver_path)
+            
             self._logger.info(f"Using ChromeDriver from: {driver_path}")
             return str(driver_path)
+            
         except Exception as e:
             error_msg = f"Failed to set up ChromeDriver: {e}"
             self._logger.error(error_msg)
             raise BrowserError(error_msg) from e
-        
-    @retry_on_failure(max_retries=3, delay=2, backoff=2, exceptions=(WebDriverException,))
-    def start(self) -> None:
-        """
-        Start the Chrome browser with the configured settings.
-        
-        Raises:
-            BrowserError: If the browser fails to start
-        """
-        if self._is_running and self.driver is not None:
-            self._logger.warning("Browser is already running")
-            return
+    
+    def _is_chromedriver_compatible(self, driver_path: Path, chrome_version: str) -> bool:
+        """Check if ChromeDriver is compatible with the installed Chrome version."""
+        if not driver_path.exists():
+            return False
             
         try:
-            self._logger.info("Starting Chrome browser...")
-            
-            # Set up Chrome options
-            options = ChromeOptions()
-            
-            # Set headless mode if specified
-            if self.config.headless:
-                options.add_argument("--headless=new")
-                options.add_argument("--disable-gpu")
-                
-            # Add additional Chrome arguments
-            for arg in self.config.chrome_arguments:
-                if arg not in ["--headless", "--disable-gpu"]:  # Avoid duplicates
-                    options.add_argument(arg)
-                    
-            # Set custom user agent if specified
-            if self.config.user_agent:
-                options.add_argument(f"--user-agent={self.config.user_agent}")
-            
-            # Set window size
-            if self.config.window_size:
-                options.add_argument(f"--window-size={self.config.window_size[0]},{self.config.window_size[1]}")
-            else:
-                options.add_argument("--start-maximized")
-            
-            # Additional performance and stability options
-            options.add_argument("--no-sandbox")
-            options.add_argument("--disable-dev-shm-usage")
-            options.add_argument("--disable-blink-features=AutomationControlled")
-            
-            # Disable automation flags detection
-            options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            options.add_experimental_option('useAutomationExtension', False)
-            
-            # Set up the Chrome service
-            driver_path = self._get_chrome_driver_path()
-            
-            # Create Chrome service with the driver path
-            self._service = ChromeService(executable_path=driver_path)
-            
-            # Initialize WebDriver
-            self.driver = webdriver.Chrome(
-                service=self._service,
-                options=options
+            result = subprocess.run(
+                [str(driver_path), "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5
             )
             
-            # Set window size if specified
-            if self.config.window_size:
-                self.driver.set_window_size(*self.config.window_size)
-            else:
-                self.driver.maximize_window()
+            if result.returncode != 0:
+                return False
+                
+            version_match = re.search(r"ChromeDriver\s+([\d.]+)", result.stdout)
+            if not version_match:
+                return False
+                
+            driver_version = version_match.group(1)
+            return driver_version.split('.')[0] == chrome_version.split('.')[0]
             
-            self._logger.info("Chrome browser started successfully")
-            
-        except Exception as e:
-            self._logger.error(f"Failed to start Chrome browser: {e}")
-            if hasattr(self, '_service') and self._service:
-                try:
-                    self._service.stop()
-                except Exception as stop_error:
-                    self._logger.error(f"Error stopping Chrome service: {stop_error}")
-            raise
+        except Exception:
+            return False
     
-    def stop(self) -> None:
+    def _download_chromedriver(self, url: str, target_path: Path) -> None:
+        """Download and extract ChromeDriver."""
+        try:
+            self._logger.info(f"Downloading ChromeDriver from: {url}")
+            
+            # Create temp directory
+            temp_dir = target_path.parent / "temp_chromedriver"
+            temp_dir.mkdir(exist_ok=True)
+            zip_path = temp_dir / "chromedriver.zip"
+            
+            # Download the file
+            urllib.request.urlretrieve(url, zip_path)
+            
+            # Extract the file
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+                
+            # Find the chromedriver executable
+            chromedriver_exe = None
+            for file in temp_dir.glob("**/chromedriver*"):
+                if file.is_file() and not file.name.endswith('.zip'):
+                    chromedriver_exe = file
+                    break
+                    
+            if not chromedriver_exe:
+                raise BrowserError("Could not find chromedriver executable in downloaded archive")
+                
+            # Move to target location
+            if target_path.exists():
+                target_path.unlink()
+            shutil.move(str(chromedriver_exe), str(target_path))
+            
+            # Clean up
+            shutil.rmtree(temp_dir)
+            
+            # Set executable permissions
+            if platform.system() != "Windows":
+                target_path.chmod(0o755)
+                
+        
+        # Default to 64-bit for non-Windows or if detection fails
+        self._chrome_architecture = '64'
+        return self._chrome_architecture
+        
+    except Exception as e:
+        self._logger.error(f"Error detecting Chrome architecture: {e}")
+        # Default to 64-bit if detection fails
+        return '64'
+    
+def _get_chrome_driver_path(self) -> str:
+    """
+    Get the path to the ChromeDriver executable.
+    
+    Returns:
+        str: Path to the ChromeDriver executable
         """
         Stop the Chrome browser and clean up resources.
         

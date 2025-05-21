@@ -17,7 +17,33 @@ A robust and extensible Chrome browser automation tool built with Selenium and P
 - 💾 Configurable download directories
 - 🔄 Context manager support for resource cleanup
 
+## System Requirements
+
+- Python 3.8 or higher
+- Chrome/Chromium browser installed
+- Git (for development)
+
 ## Installation
+
+### Quick Start (Windows)
+
+1. **Clone the repository**
+   ```powershell
+   git clone https://github.com/consumrbuzzy/chrome-puppet.git
+   cd chrome-puppet
+   ```
+
+2. **Run the setup script**
+   ```powershell
+   .\setup_env.ps1
+   ```
+   
+   For development with additional tools:
+   ```powershell
+   .\setup_env.ps1 -Dev
+   ```
+
+### Manual Setup
 
 1. **Clone the repository**
    ```bash
@@ -25,15 +51,18 @@ A robust and extensible Chrome browser automation tool built with Selenium and P
    cd chrome-puppet
    ```
 
-2. **Set up a virtual environment (recommended)**
-   ```bash
-   # On Windows
-   python -m venv venv
-   .\venv\Scripts\activate
+2. **Set up a virtual environment**
    
-   # On macOS/Linux
-   python3 -m venv venv
-   source venv/bin/activate
+   **Windows:**
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
+   
+   **macOS/Linux:**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
    ```
 
 3. **Install dependencies**
@@ -45,6 +74,21 @@ A robust and extensible Chrome browser automation tool built with Selenium and P
    ```bash
    pip install -r requirements-dev.txt
    ```
+
+## Environment Variables
+
+Create a `.env` file in the project root with the following variables:
+
+```env
+# Chrome settings
+CHROME_HEADLESS=false
+CHROME_WINDOW_SIZE=1920,1080
+CHROME_IMPLICIT_WAIT=10
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=chrome_puppet.log
+```
 
 ## Quick Start
 

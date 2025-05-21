@@ -61,9 +61,14 @@ class TestChromePuppetBasic(unittest.TestCase):
         with ChromePuppet(config=self.config) as browser:
             browser.get("https://www.example.com")
             screenshot_path = browser.take_screenshot("test_example")
-            self.assertTrue(screenshot_path.exists(), "Screenshot file should exist")
+            # Convert to Path object if it's a string
+            screenshot_path = Path(screenshot_path) if isinstance(screenshot_path, str) else screenshot_path
+            self.assertTrue(screenshot_path.exists(), f"Screenshot file should exist at {screenshot_path}")
             self.assertGreater(screenshot_path.stat().st_size, 0, "Screenshot file should not be empty")
             logger.info(f"Screenshot saved to {screenshot_path}")
+            # Clean up after test
+            if screenshot_path.exists():
+                screenshot_path.unlink()
     
     def test_custom_user_agent(self):
         """Test custom user agent setting."""
@@ -76,7 +81,7 @@ class TestChromePuppetBasic(unittest.TestCase):
             browser.get("https://httpbin.org/user-agent")
             # The page returns the user agent in the response body
             user_agent = browser.driver.find_element("tag name", "body").text
-            self.assertIn(custom_agent, user_agent)
+            self.assertIn(custom_ua, user_agent)
             logger.info(f"Verified custom user agent: {custom_ua}")
 
 if __name__ == "__main__":

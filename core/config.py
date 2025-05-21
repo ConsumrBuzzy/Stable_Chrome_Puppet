@@ -31,6 +31,9 @@ class ChromeConfig:
     chrome_path: Optional[str] = None
     """Path to the Chrome/Chromium executable. If None, uses the default path."""
     
+    chromium: bool = False
+    """Whether to use Chromium instead of Chrome."""
+    
     implicit_wait: int = 10
     """Implicit wait time in seconds for element location."""
     
@@ -46,6 +49,9 @@ class ChromeConfig:
     
     experimental_options: Dict[str, Any] = field(default_factory=dict)
     """Experimental Chrome options to pass to WebDriver."""
+    
+    window_size: Optional[Tuple[int, int]] = (1920, 1080)
+    """Window size as (width, height) tuple. If None, browser will be maximized."""
     
     # Logging and debugging
     verbose: bool = False

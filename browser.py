@@ -22,8 +22,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.os_manager import ChromeType
 from bs4 import BeautifulSoup
 
-from .config import ChromeConfig, DEFAULT_CONFIG
-from .utils import get_default_download_dir, ensure_dir, is_chrome_installed, get_chrome_version
+from config import ChromeConfig, DEFAULT_CONFIG
+from utils import get_default_download_dir, ensure_dir, is_chrome_installed, get_chrome_version
 
 logger = logging.getLogger(__name__)
 

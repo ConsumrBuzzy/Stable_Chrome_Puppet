@@ -1,12 +1,15 @@
 # Core Dependencies
-selenium==4.11.2
-webdriver-manager==4.0.1
-beautifulsoup4==4.12.2
-python-dotenv==1.0.0
-packaging==23.1
-requests==2.31.0
-urllib3==1.26.16
-pywin32>=307,<309; sys_platform == 'win32'
+selenium>=4.11.2
+beautifulsoup4>=4.12.2
+python-dotenv>=1.0.0
+packaging>=23.1
+requests>=2.31.0
+urllib3>=1.26.16
+pywin32>=307; sys_platform == 'win32'
+
+# ChromeDriver Management
+webdriver-manager>=4.0.1  # For fallback purposes
+requests-file>=1.5.1    # For file:// URL support
 
 # Testing
 pytest==7.4.0

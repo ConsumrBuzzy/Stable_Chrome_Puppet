@@ -5,12 +5,15 @@ import time
 import pytest
 from pathlib import Path
 from typing import Generator
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 # Add parent directory to path to import our package
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
-from selenium.webdriver.common.by import By
-from core.browser.exceptions import BrowserError, NavigationError
+from core.browser.exceptions import BrowserError, NavigationError, ElementNotFoundError, ElementNotInteractableError, TimeoutError
 from core.config import ChromeConfig
 from tests.base_test import BaseTest
 
@@ -136,6 +139,60 @@ class TestChromeBrowser(BaseTest):
             user_agent = custom_browser.driver.find_element(By.TAG_NAME, "body").text
             # Check if our custom part is in the user agent
             assert custom_ua in user_agent
+
+
+def test_element_interaction(browser, test_page_with_form):
+    """Test various element interactions."""
+    browser.get(test_page_with_form)
+    
+    # Test finding elements
+    elements = [
+        ("id", "search-input"),
+        ("name", "search"),
+        ("css", "input[type='text']"),
+        ("xpath", "//input[@id='search-input']"),
+        ("link text", "Click me"),
+        ("partial link text", "Click")
+    ]
+    
+    for by, value in elements:
+        element = browser.element.find_element(by, value)
+        assert element is not None
+        assert element.is_displayed()
+    
+    # Test sending keys
+    search_input = browser.element.find_element("id", "search-input")
+    browser.element.send_keys("test search", element=search_input)
+    assert search_input.get_attribute("value") == "test search"
+    
+    # Test clicking
+    submit_button = browser.element.find_element("css", "button[type='submit']")
+    browser.element.click(submit_button)
+    assert "form-submitted" in browser.get_current_url()
+
+
+def test_screenshot_functionality(browser, tmp_path):
+    """Test screenshot capture functionality."""
+    # Navigate to a test page
+    browser.get("https://httpbin.org/html")
+    
+    # Take a full page screenshot
+    screenshot_path = tmp_path / "full_page.png"
+    result = browser.screenshot.take_screenshot(str(screenshot_path))
+    
+    # Verify the screenshot was created
+    assert result is True
+    assert screenshot_path.exists()
+    assert screenshot_path.stat().st_size > 0
+    
+    # Test element screenshot
+    element = browser.driver.find_element(By.CSS_SELECTOR, "div.ng-scope")
+    element_screenshot = element.screenshot_as_png
+    element_path = tmp_path / "element.png"
+    with open(element_path, 'wb') as f:
+        f.write(element_screenshot)
+    assert element_path.exists()
+    assert element_path.stat().st_size > 0
 
 
 class TestChromeConfig:

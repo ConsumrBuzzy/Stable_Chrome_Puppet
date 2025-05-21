@@ -547,6 +547,7 @@ class ChromeBrowser(BaseBrowser):
             self._logger.warning("Browser is already running")
             return
                 
+        try:
             # Create and configure the WebDriver
             self._logger.info("Initializing Chrome browser...")
             self.driver = self._create_driver()

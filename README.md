@@ -129,15 +129,62 @@ chrome-puppet/
 └── requirements*.txt # Dependencies
 ```
 
+## 🧪 Running Tests
+
+To run the test suite, follow these steps:
+
+1. Install the development dependencies:
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
+2. Run the tests:
+   ```bash
+   # Run all tests
+   pytest -v
+   
+   # Run only browser tests
+   pytest -m browser
+   
+   # Run tests with coverage report
+   pytest --cov=core --cov-report=term-missing
+   ```
+
+3. For debugging tests, you can run Chrome in headful mode:
+   ```bash
+   pytest --headful
+   ```
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
 1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Write tests for your changes
+4. Run the test suite to ensure all tests pass
+5. Commit your changes (`git commit -m 'Add some amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Development Workflow
+
+1. Create a virtual environment and activate it
+2. Install development dependencies:
+   ```bash
+   pip install -r requirements-dev.txt
+   pre-commit install
+   ```
+3. Make your changes
+4. Run tests and linters:
+   ```bash
+   black .
+   flake8
+   mypy .
+   pytest
+   ```
+5. Update documentation if needed
+6. Submit a pull request
 
 ## 📄 License
 
@@ -158,6 +205,8 @@ For support, please open an issue on our [GitHub Issues](https://github.com/cons
 ![GitHub stars](https://img.shields.io/github/stars/consumrbuzzy/chrome-puppet?style=social)
 ![PyPI](https://img.shields.io/pypi/v/chrome-puppet)
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
+![Tests](https://github.com/consumrbuzzy/chrome-puppet/actions/workflows/tests.yml/badge.svg)
+[![codecov](https://codecov.io/gh/consumrbuzzy/chrome-puppet/graph/badge.svg?token=YOUR-TOKEN)](https://codecov.io/gh/consumrbuzzy/chrome-puppet)
 
 ---
 

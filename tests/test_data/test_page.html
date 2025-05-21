@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Page for Chrome Puppet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        #delayed-element {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Form</h1>
+    
+    <form id="test-form" action="/form-submitted" method="get">
+        <div>
+            <label for="search-input">Search:</label>
+            <input type="text" id="search-input" name="search" placeholder="Type something...">
+        </div>
+        
+        <div style="margin-top: 10px;">
+            <button type="submit" id="submit-button">Submit</button>
+            <a href="#" id="test-link">Click me</a>
+        </div>
+        
+        <div>
+            <input type="checkbox" id="test-checkbox">
+            <label for="test-checkbox">Check me</label>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <select id="test-select">
+                <option value="">Select an option</option>
+                <option value="1">Option 1</option>
+                <option value="2">Option 2</option>
+                <option value="3">Option 3</option>
+            </select>
+        </div>
+        
+        <div id="hidden-element" class="hidden">This is hidden</div>
+    </form>
+    
+    <div id="dynamic-content">
+        <!-- Content will be added dynamically -->
+    </div>
+    
+    <div id="delayed-element">
+        This element appears after a delay
+    </div>
+    
+    <script>
+        // Show the delayed element after 2 seconds
+        setTimeout(function() {
+            document.getElementById('delayed-element').style.display = 'block';
+        }, 2000);
+        
+        // Add a click handler to the test link
+        document.getElementById('test-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            const div = document.createElement('div');
+            div.textContent = 'Link was clicked at ' + new Date().toLocaleTimeString();
+            document.getElementById('dynamic-content').appendChild(div);
+        });
+    </script>
+</body>
+</html>

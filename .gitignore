@@ -49,9 +49,20 @@ screenshots/*.jpeg
 
 # Test artifacts
 .coverage
+.coverage.*
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+.mypy_cache/*
+!.mypy_cache/.gitkeep
+.pytest_cache/*
+!.pytest_cache/.gitkeep
+coverage.xml
+junit-*.xml
+.pytest_cache/
+.mypy_cache/
+.venv
+.venv/
 
 # OS generated files
 .DS_Store

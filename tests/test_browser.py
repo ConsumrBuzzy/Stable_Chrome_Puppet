@@ -1,7 +1,12 @@
 """Tests for the Chrome browser implementation."""
+import sys
+from pathlib import Path
+
+# Add parent directory to path to import our package
+sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
+
 import pytest
 import time
-from pathlib import Path
 from typing import Generator
 
 from core.browser.exceptions import BrowserError, NavigationError

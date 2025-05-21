@@ -284,13 +284,12 @@ class ChromePuppet:
             chrome_options.add_argument("--remote-debugging-port=9222")
             
             try:
-                # Try to get Chrome version and set up WebDriverManager
+                # Get Chrome version
                 chrome_version = self._get_chrome_version()
                 self._logger.info(f"Detected Chrome version: {chrome_version}")
                 
-                # Initialize WebDriverManager with the detected Chrome version
-                driver_manager = ChromeDriverManager(version=chrome_version)
-                driver_path = driver_manager.install()
+                # Install and get the ChromeDriver path
+                driver_path = ChromeDriverManager().install()
                 self._logger.info(f"Using ChromeDriver at: {driver_path}")
                 
                 # Create Chrome service with the driver path

@@ -263,26 +263,39 @@ class ChromePuppet:
     def _get_chrome_driver_path(self) -> str:
         """Get the path to the ChromeDriver executable."""
         try:
+            # First, try to determine system architecture
+            import platform
+            is_64bit = platform.machine().endswith('64')
+            driver_version = '114.0.5735.90'  # A known stable version
+            
             # Try to use webdriver-manager to get the correct ChromeDriver
-            driver_path = ChromeDriverManager().install()
+            if is_64bit:
+                driver_path = ChromeDriverManager(version=driver_version).install()
+            else:
+                # For 32-bit systems
+                driver_path = ChromeDriverManager(version=driver_version, os_type='win32').install()
+                
             self._logger.info(f"Using ChromeDriver from webdriver-manager: {driver_path}")
             return driver_path
+            
         except Exception as e:
             self._logger.warning(f"Failed to get ChromeDriver from webdriver-manager: {e}")
-            # Fallback to system PATH
-            if os.name == 'nt':  # Windows
-                chromedriver_name = 'chromedriver.exe'
-            else:  # macOS/Linux
-                chromedriver_name = 'chromedriver'
+            
+            # Fallback to bundled ChromeDriver or system PATH
+            chromedriver_name = 'chromedriver.exe' if os.name == 'nt' else 'chromedriver'
             
             # Check common locations
             common_paths = [
+                os.path.join(os.path.dirname(__file__), 'bin', chromedriver_name),  # Bundled location
                 os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'win64', chromedriver_name),
+                os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'win32', chromedriver_name),
                 os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'mac64', chromedriver_name),
                 os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'linux64', chromedriver_name),
                 'chromedriver',
                 '/usr/local/bin/chromedriver',
-                '/usr/bin/chromedriver'
+                '/usr/bin/chromedriver',
+                os.path.join(os.environ.get('PROGRAMFILES', ''), 'ChromeDriver', chromedriver_name),
+                os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), 'ChromeDriver', chromedriver_name)
             ]
             
             for path in common_paths:
@@ -290,7 +303,16 @@ class ChromePuppet:
                     self._logger.info(f"Found ChromeDriver at: {path}")
                     return path
             
-            raise RuntimeError("Could not find ChromeDriver. Please ensure it's installed and in your PATH.")
+            # If we get here, try one last time with just the default
+            try:
+                return ChromeDriverManager().install()
+            except Exception as e:
+                self._logger.error(f"Final attempt to get ChromeDriver failed: {e}")
+                raise RuntimeError(
+                    "Could not find or download ChromeDriver. "
+                    "Please ensure it's installed and in your PATH, or install it manually from "
+                    "https://chromedriver.chromium.org/downloads"
+                )
 
     @_retry_on_failure(max_retries=3, delay=2, backoff=2, exceptions=(WebDriverException,))
     def _initialize_driver(self):

@@ -8,7 +8,15 @@ using the ChromePuppet automation framework.
 import argparse
 import logging
 import sys
+import os
 from pathlib import Path
+
+# Fix Windows console encoding for emoji support
+if os.name == 'nt':
+    import io
+    import sys
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.absolute()))
@@ -23,7 +31,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('chrome_puppet.log')
+        logging.FileHandler('chrome_puppet.log', encoding='utf-8')
     ]
 )
 logger = logging.getLogger(__name__)

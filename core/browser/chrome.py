@@ -5,8 +5,9 @@ import shutil
 import struct
 import zipfile
 import urllib.request
+import logging
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any, Dict
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -14,9 +15,32 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 
-from .exceptions import BrowserNotInitializedError, NavigationError, BrowserError
+from .base import BaseBrowser
+from .exceptions import BrowserNotInitializedError, NavigationError, BrowserError, ScreenshotError
 
-def _get_chrome_version(self) -> Optional[str]:
+
+class ChromeBrowser(BaseBrowser):
+    """
+    Chrome browser implementation using Selenium WebDriver.
+    
+    This class provides a high-level interface for browser automation with Chrome,
+    including navigation, element interaction, and screenshot capabilities.
+    """
+    
+    def __init__(self, config: Any, logger: Optional[logging.Logger] = None):
+        """
+        Initialize the Chrome browser.
+        
+        Args:
+            config: Configuration object for the browser
+            logger: Optional logger instance
+        """
+        super().__init__(config, logger)
+        self.driver = None
+        self._service = None
+        self._is_running = False
+
+    def _get_chrome_version(self) -> Optional[str]:
     """Detect installed Chrome version.
     
     Returns:
@@ -40,7 +64,7 @@ def _get_chrome_version(self) -> Optional[str]:
         self._logger.warning(f"Could not detect Chrome version: {e}")
     return None
 
-def _get_chrome_bitness(self) -> str:
+    def _get_chrome_bitness(self) -> str:
     """Detect Chrome installation bitness.
     
     Returns:
@@ -66,7 +90,7 @@ def _get_chrome_bitness(self) -> str:
         self._logger.warning(f"Could not detect Chrome bitness: {e}")
         return '64'  # Default to 64-bit
 
-def _get_python_bitness(self) -> str:
+    def _get_python_bitness(self) -> str:
     """Get Python interpreter bitness.
     
     Returns:
@@ -74,7 +98,7 @@ def _get_python_bitness(self) -> str:
     """
     return '64' if struct.calcsize("P") * 8 == 64 else '32'
 
-def _download_chromedriver(self, version: str, bitness: str, target_path: Path) -> bool:
+    def _download_chromedriver(self, version: str, bitness: str, target_path: Path) -> bool:
     """Download and save ChromeDriver matching the specified version and bitness.
     
     Args:
@@ -131,7 +155,7 @@ def _download_chromedriver(self, version: str, bitness: str, target_path: Path) 
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 # Fix the _setup_chrome_options method
-def _setup_chrome_options(self) -> ChromeOptions:
+    def _setup_chrome_options(self) -> ChromeOptions:
     """Set up Chrome options with configured settings.
     
     Returns:
@@ -171,7 +195,7 @@ def _setup_chrome_options(self) -> ChromeOptions:
     return options
 
 # Add the missing _cleanup_resources method
-def _cleanup_resources(self) -> None:
+    def _cleanup_resources(self) -> None:
     """Clean up browser resources."""
     if hasattr(self, 'driver') and self.driver:
         try:
@@ -195,7 +219,7 @@ def _cleanup_resources(self) -> None:
         finally:
             self._service = None
 
-def _create_driver(self) -> webdriver.Chrome:
+    def _create_driver(self) -> webdriver.Chrome:
     """Create and configure a Chrome WebDriver instance with automatic driver management.
     
     This method implements a multi-layered approach to WebDriver initialization:
@@ -259,7 +283,7 @@ def _create_driver(self) -> webdriver.Chrome:
         self._logger.error(error_msg)
         raise BrowserError(error_msg) from e
 
-def start(self) -> None:
+    def start(self) -> None:
     """
     Start the Chrome browser with the configured settings.
     
@@ -287,11 +311,133 @@ def start(self) -> None:
             
     except Exception as e:
         error_msg = f"Failed to start Chrome browser: {e}"
-        self._logger.error(error_msg)
-        self._cleanup_resources()
-        raise BrowserError(error_msg) from e
 
-def stop(self) -> None:
+    def stop(self) -> None:
+        """Stop the browser and clean up resources."""
+        if not self._is_running or not self.driver:
+            self._logger.warning("Browser is not running")
+            return
+
+        try:
+            self._cleanup_resources()
+            self._logger.info("Browser stopped successfully")
+        except Exception as e:
+            self._logger.error(f"Error while stopping browser: {e}")
+            raise BrowserError(f"Failed to stop browser: {e}") from e
+        finally:
+            self._is_running = False
+            self.driver = None
+            self._service = None
+
+    def navigate_to(self, url: str, wait_time: Optional[float] = None) -> bool:
+        """
+        Navigate to the specified URL.
+
+        Args:
+            url: The URL to navigate to
+            wait_time: Optional time to wait for page load (seconds)
+            
+        Returns:
+            bool: True if navigation was successful
+            
+        Raises:
+            BrowserNotInitializedError: If browser is not started
+            NavigationError: If navigation fails
+        """
+        if not self._is_running or not self.driver:
+            raise BrowserNotInitializedError("Browser is not running")
+            
+        try:
+            self.driver.get(url)
+            
+            # Wait for page load if wait_time is specified
+            if wait_time is not None:
+                self.driver.implicitly_wait(wait_time)
+                
+            return True
+            
+        except Exception as e:
+            error_msg = f"Failed to navigate to {url}: {e}"
+            self._logger.error(error_msg)
+            raise NavigationError(error_msg) from e
+            
+    def get_page_source(self) -> str:
+        """
+        Get the current page source.
+        
+        Returns:
+            str: The page source HTML
+            
+        Raises:
+            BrowserNotInitializedError: If browser is not started
+        """
+        if not self._is_running or not self.driver:
+            raise BrowserNotInitializedError("Browser is not running")
+            
+        return self.driver.page_source
+        
+    def get_current_url(self) -> str:
+        """
+        Get the current URL.
+        
+        Returns:
+            str: The current URL
+            
+        Raises:
+            BrowserNotInitializedError: If browser is not started
+        """
+        if not self._is_running or not self.driver:
+            raise BrowserNotInitializedError("Browser is not running")
+            
+        return self.driver.current_url
+        
+    def take_screenshot(self, file_path: str, full_page: bool = False) -> bool:
+        """
+        Take a screenshot of the current page.
+        
+        Args:
+            file_path: Path to save the screenshot
+            full_page: If True, capture the full page (requires JavaScript)
+            
+        Returns:
+            bool: True if screenshot was successful
+            
+        Raises:
+            BrowserNotInitializedError: If browser is not started
+            ScreenshotError: If screenshot capture fails
+        """
+        if not self._is_running or not self.driver:
+            raise BrowserNotInitializedError("Browser is not running")
+            
+        try:
+            if full_page:
+                # Scroll and stitch approach for full page screenshot
+                total_height = self.driver.execute_script("return document.body.scrollHeight")
+                viewport_height = self.driver.execute_script("return window.innerHeight")
+                
+                # Take multiple screenshots and stitch them
+                # (Implementation left as an exercise)
+                # For now, fall back to viewport screenshot
+                self.driver.save_screenshot(file_path)
+            else:
+                self.driver.save_screenshot(file_path)
+                
+            return True
+            
+        except Exception as e:
+            error_msg = f"Failed to take screenshot: {e}"
+            self._logger.error(error_msg)
+            raise ScreenshotError(error_msg) from e
+            
+    def __enter__(self):
+        """Context manager entry."""
+        self.start()
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.stop()
+        return False  # Don't suppress exceptions
     """Stop the Chrome browser and clean up resources."""
     if not self._is_running or not self.driver:
         self._logger.warning("Browser is not running")

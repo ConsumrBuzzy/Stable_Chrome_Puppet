@@ -89,8 +89,12 @@ class ChromeDriverManager:
     
     def get_driver_url(self, version: str) -> str:
         """Get the download URL for ChromeDriver."""
+        # ChromeDriver URLs follow this pattern:
+        # https://chromedriver.storage.googleapis.com/2.41/chromedriver_win32.zip
+        # We need to use the major version number in the path
+        major_version = version.split('.')[0]
         filename = f"chromedriver_{self.platform}.zip"
-        return f"{self.CHROME_DRIVER_BASE_URL}/{version}/{filename}"
+        return f"{self.CHROME_DRIVER_BASE_URL}/{major_version}.0.0/{filename}"
     
     def download_driver(self, url: str, target_path: Path) -> None:
         """Download and extract ChromeDriver."""

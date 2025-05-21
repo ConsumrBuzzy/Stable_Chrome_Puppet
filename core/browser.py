@@ -159,13 +159,28 @@ class ChromePuppet:
             # Get the appropriate Chrome type
             chrome_type = ChromeType.CHROMIUM if self.config.chromium else ChromeType.GOOGLE
             
-            # Set up Chrome service with specific driver version
-            self._service = ChromeService(
-                ChromeDriverManager(
-                    chrome_type=chrome_type,
-                    version='114.0.5735.90'  # Stable version known to work well
-                ).install()
-            )
+            # Configure Chrome options first
+            options = ChromeOptions()
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-gpu")
+            options.add_argument("--remote-debugging-port=9222")
+            
+            # Set up Chrome service with specific driver executable path
+            try:
+                # Get the path to the ChromeDriver executable
+                driver_path = ChromeDriverManager().install()
+                self._logger.info(f"Using ChromeDriver at: {driver_path}")
+                
+                # Create Chrome service with the driver path
+                self._service = ChromeService(executable_path=driver_path)
+                
+                # Set the driver path in Chrome options
+                options.binary_location = driver_path
+                
+            except Exception as e:
+                self._logger.error(f"Failed to initialize ChromeDriver: {e}")
+                raise
             
             # Initialize WebDriver with retry logic
             max_retries = 3

@@ -37,11 +37,20 @@ class ChromeConfig:
     implicit_wait: int = 10
     """Implicit wait time in seconds for element location."""
     
+    timeout: int = 30
+    """Default timeout in seconds for page loads and element waits."""
+    
     # Advanced settings
     chrome_options: Dict[str, Any] = field(default_factory=dict)
     """Additional Chrome options to pass to WebDriver."""
     
-    chrome_arguments: List[str] = field(default_factory=list)
+    chrome_arguments: List[str] = field(default_factory=lambda: [
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--remote-debugging-port=9222",
+        "--disable-blink-features=AutomationControlled",
+        "--disable-infobars"
+    ])
     """Command line arguments to pass to Chrome."""
     
     extensions: List[str] = field(default_factory=list)

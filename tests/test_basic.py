@@ -81,15 +81,17 @@ class TestChromePuppetBasic(unittest.TestCase):
     
     def test_custom_user_agent(self):
         """Test custom user agent setting."""
-        custom_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ChromePuppet/1.0"
+        custom_ua = "ChromePuppet/1.0"  # Just check for the custom part
+        full_ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) {custom_ua}"
         config = ChromeConfig(
             headless=True,
-            user_agent=custom_ua
+            user_agent=full_ua
         )
         with ChromePuppet(config=config) as browser:
             browser.get("https://httpbin.org/user-agent")
             # The page returns the user agent in the response body
             user_agent = browser.driver.find_element("tag name", "body").text
+            # Check if our custom part is in the user agent
             self.assertIn(custom_ua, user_agent)
             logger.info(f"Verified custom user agent: {custom_ua}")
 

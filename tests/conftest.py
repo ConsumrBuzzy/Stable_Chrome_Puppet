@@ -36,12 +36,19 @@ TEST_BASE_URL = f"http://{TEST_HOST}:{TEST_PORT}"
 @pytest.fixture(scope="session")
 def chrome_config() -> ChromeConfig:
     """Create a ChromeConfig for testing."""
-    return ChromeConfig(
+    config = ChromeConfig(
         headless=True,  # Run in headless mode for CI
         window_size=(1280, 1024),
-        implicit_wait=10,
-        screenshot_dir=str(SCREENSHOT_DIR),
+        implicit_wait=10
     )
+    # Set screenshot directory in chrome options if needed
+    config.chrome_options['prefs'] = {
+        'download.default_directory': str(SCREENSHOT_DIR),
+        'download.prompt_for_download': False,
+        'download.directory_upgrade': True,
+        'safebrowsing.enabled': True
+    }
+    return config
 
 @pytest.fixture
 def browser(chrome_config: ChromeConfig) -> Generator[ChromeBrowser, None, None]:

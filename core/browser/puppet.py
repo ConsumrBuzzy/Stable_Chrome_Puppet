@@ -81,13 +81,38 @@ class ChromePuppet:
             self._is_running = False
             self._browser = None
     
-    def navigate_to(self, url: str, timeout: int = 30) -> None:
+    def get(self, url: str, **kwargs) -> bool:
+        """
+        Alias for navigate_to() for compatibility with Selenium-like interfaces.
+        
+        Args:
+            url: The URL to navigate to
+            **kwargs: Additional arguments (like 'timeout')
+            
+        Returns:
+            bool: True if navigation was successful, False otherwise
+        """
+        try:
+            self.navigate_to(url, **kwargs)
+            return True
+        except Exception as e:
+            self._logger.error(f"Failed to navigate to {url}: {e}", exc_info=True)
+            return False
+    
+    def quit(self) -> None:
+        """Alias for stop() for compatibility with Selenium-like interfaces."""
+        self.stop()
+    
+    def navigate_to(self, url: str, timeout: int = 30) -> bool:
         """
         Navigate to the specified URL.
         
         Args:
             url: The URL to navigate to
             timeout: Maximum time to wait for page load in seconds
+            
+        Returns:
+            bool: True if navigation was successful, False otherwise
             
         Raises:
             BrowserError: If browser is not initialized
@@ -98,6 +123,7 @@ class ChromePuppet:
             
         try:
             self._browser.navigate_to(url, timeout)
+            return True
         except Exception as e:
             error_msg = f"Failed to navigate to {url}: {e}"
             self._logger.error(error_msg, exc_info=True)

@@ -6,48 +6,55 @@
    - Ensure reliable browser automation
    - Implement robust error handling and recovery
    - Maintain consistent behavior across different environments
+   - Use virtual environments to isolate dependencies
 
-2. **Simplicity**
+2. **Development Environment**
+   - Always use a virtual environment for development
+   - Document all dependencies in `requirements.txt` and `requirements-dev.txt`
+   - Use the provided `setup_env.ps1` script for consistent environment setup
+   - Keep the `.env.example` file updated with all available configuration options
+
+3. **Simplicity**
    - Minimal nesting in code
    - Minimal number of modules (only create new ones when absolutely necessary)
    - Clear, self-documenting code
 
-3. **User Experience**
+4. **User Experience**
    - Default to visible browser (not headless) for better debugging
    - Provide clear feedback and logging
    - Make common tasks easy, complex tasks possible
 
-4. **Configuration**
+5. **Configuration**
    - Sensible defaults for all settings
    - Easy configuration through code or environment variables
    - Clear documentation of all configurable options
 
-5. **Testing**
+6. **Testing**
    - All features must be tested
    - Tests should be isolated and independent
    - Include both unit and integration tests
 
-6. **Documentation**
+7. **Documentation**
    - Keep documentation up-to-date
    - Include examples for common use cases
    - Document all public APIs
 
-7. **Dependencies**
+8. **Dependencies**
    - Minimize external dependencies
    - Pin all dependency versions
    - Document all dependencies and their purposes
 
-8. **Error Handling**
+9. **Error Handling**
    - Fail fast with clear error messages
    - Include context in error messages
    - Provide recovery options when possible
 
-9. **Performance**
+10. **Performance**
    - Optimize for both development speed and runtime performance
    - Profile and optimize critical paths
    - Be mindful of resource usage
 
-10. **Security**
+11. **Security**
     - Never log sensitive information
     - Validate all inputs
     - Follow security best practices for web automation
@@ -78,7 +85,7 @@
 
 ## Project Structure
 
-```
+```plaintext
 chrome-puppet/
 ├── chrome_puppet/          # Main package
 │   ├── __init__.py         # Package initialization

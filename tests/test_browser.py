@@ -1,24 +1,67 @@
 """Tests for the Chrome browser implementation."""
+import os
 import sys
+import time
+import pytest
 from pathlib import Path
+from typing import Generator
 
 # Add parent directory to path to import our package
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
-import pytest
-import time
-from typing import Generator
-
+from selenium.webdriver.common.by import By
 from core.browser.exceptions import BrowserError, NavigationError
 from core.config import ChromeConfig
+from tests.base_test import BaseTest
 
 # Mark all tests in this module as browser tests
 pytestmark = [pytest.mark.browser]
 
-class TestChromeBrowser:
+class TestChromeBrowser(BaseTest):
     """Test cases for ChromeBrowser class."""
     
     def test_browser_initialization(self, browser):
+        """Test that the browser initializes correctly."""
+        # Check that the browser is created
+        assert browser.driver is not None
+        assert browser.driver.capabilities is not None
+        
+        # Check that we can navigate to a page
+        browser.get("https://httpbin.org/headers")
+        assert "httpbin.org" in browser.driver.current_url
+        
+        # Take a screenshot for verification
+        self.take_screenshot(browser, "browser_init_test")
+        
+        # Check page title
+        assert "httpbin" in browser.driver.title.lower()
+    
+    def test_javascript_execution(self, browser):
+        """Test JavaScript execution in the browser."""
+        # Execute JavaScript
+        user_agent = browser.driver.execute_script("return navigator.userAgent;")
+        assert isinstance(user_agent, str)
+        assert "Chrome" in user_agent
+        
+        # Test console.log capture
+        browser.driver.execute_script("console.log('Test message from JavaScript');")
+    
+    def test_window_management(self, browser):
+        """Test browser window management."""
+        # Test window size
+        width = 1024
+        height = 768
+        browser.driver.set_window_size(width, height)
+        
+        # Get window size
+        window_size = browser.driver.get_window_size()
+        assert window_size['width'] == width
+        assert window_size['height'] == height
+        
+        # Test maximize
+        browser.driver.maximize_window()
+        
+    def test_browser_navigation(self, browser):
         """Test that the browser initializes correctly."""
         assert browser.is_running()
         assert browser.driver is not None

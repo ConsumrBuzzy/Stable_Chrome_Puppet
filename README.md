@@ -4,49 +4,87 @@ A robust and extensible Chrome browser automation tool built with Selenium and P
 
 ## Features
 
-- 🚀 Automatic ChromeDriver management
-- ⚙️ Flexible configuration system
+- 🚀 Self-contained Chrome and ChromeDriver management
+- 🔄 Automatic browser version detection and compatibility handling
+- 🧩 Extensible base class for different website platforms
 - 🛡️ Built-in error handling and recovery
-- 🧩 Extensible architecture
-- 🔍 BeautifulSoup integration for HTML parsing
-- 📦 Easy installation and setup
-- 💾 Configurable download directories
 - 🖥️ Support for both headless and headed modes
+- 🔍 Integration with BeautifulSoup for HTML parsing
+- 🧹 Automatic resource cleanup
+- ⏱️ Configurable wait strategies
+- 📊 Comprehensive logging
+- 📸 Screenshot capture with timestamps
+- 💾 Configurable download directories
 - 🔄 Context manager support for resource cleanup
 
 ## Installation
 
-1. Clone the repository:
+1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/stable_chrome_puppet.git
-   cd stable_chrome_puppet
+   git clone https://github.com/consumrbuzzy/chrome-puppet.git
+   cd chrome-puppet
    ```
 
-2. Install the required dependencies:
+2. **Set up a virtual environment (recommended)**
+   ```bash
+   # On Windows
+   python -m venv venv
+   .\venv\Scripts\activate
+   
+   # On macOS/Linux
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
+   For development:
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
 ## Quick Start
+
+### Basic Usage
+
+```python
+from chrome_puppet import ChromePuppet
+
+# Initialize Chrome Puppet (runs in headless mode by default)
+with ChromePuppet() as browser:
+    # Navigate to a website
+    browser.get("https://www.example.com")
+    
+    # Get page title
+    print(f"Page title: {browser.title}")
+    
+    # Take a screenshot (saved to screenshots/ directory)
+    screenshot_path = browser.take_screenshot("example_page")
+    print(f"Screenshot saved to: {screenshot_path}")
+```
+
+### Advanced Configuration
 
 ```python
 from chrome_puppet import ChromePuppet, ChromeConfig
 
 # Create a custom configuration
 config = ChromeConfig(
-    headless=False,
-    window_size=(1600, 900),
-    download_dir="path/to/downloads"
+    headless=False,  # Run in visible mode
+    window_size=(1366, 768),
+    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    download_dir="path/to/downloads",
+    implicit_wait=10,  # seconds
+    verbose=True  # Enable debug logging
 )
 
-# Use the browser
+# Use the custom configuration
 with ChromePuppet(config=config) as browser:
-    # Navigate to a website
-    browser.get("https://example.com")
-    
-    # Get page content as BeautifulSoup
-    soup = browser.get_soup()
-    print(soup.title.text)
+    browser.get("https://www.example.com")
+    print(f"Current URL: {browser.driver.current_url}")
 ```
 
 ## Configuration

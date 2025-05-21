@@ -1,23 +1,98 @@
-# Add missing imports at the top of the file
-from selenium.common.exceptions import TimeoutException
-from .exceptions import BrowserNotInitializedError, NavigationError
+import os
+import sys
+import platform
+import shutil
+import struct
+import zipfile
+import urllib.request
+from pathlib import Path
+from typing import Optional, Tuple
 
-# Fix the _download_chromedriver method
-def _download_chromedriver(self, url: str, target_path: Path) -> None:
-    """Download and extract ChromeDriver.
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.common.exceptions import TimeoutException, WebDriverException
+from webdriver_manager.chrome import ChromeDriverManager
+
+from .exceptions import BrowserNotInitializedError, NavigationError, BrowserError
+
+def _get_chrome_version(self) -> Optional[str]:
+    """Detect installed Chrome version.
+    
+    Returns:
+        str: Chrome version string or None if not found
+    """
+    try:
+        if platform.system() == "Windows":
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+                              r"Software\Google\Chrome\BLBeacon") as key:
+                version = winreg.QueryValueEx(key, 'version')[0]
+                return version.split('.')[0]  # Return major version
+        else:
+            # For macOS and Linux
+            import subprocess
+            result = subprocess.run(['google-chrome', '--version'], 
+                                 capture_output=True, text=True)
+            if result.returncode == 0:
+                return result.stdout.strip().split()[-1].split('.')[0]
+    except Exception as e:
+        self._logger.warning(f"Could not detect Chrome version: {e}")
+    return None
+
+def _get_chrome_bitness(self) -> str:
+    """Detect Chrome installation bitness.
+    
+    Returns:
+        str: '32' or '64' indicating Chrome bitness
+    """
+    try:
+        if platform.system() == "Windows":
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+                              r"Software\Google\Chrome\BLBeacon") as key:
+                install_path = winreg.QueryValueEx(key, 'Path')[0]
+                chrome_exe = os.path.join(install_path, 'chrome.exe')
+                with open(chrome_exe, 'rb') as f:
+                    f.seek(0x3C)  # PE header offset
+                    pe_offset = struct.unpack('<I', f.read(4))[0]
+                    f.seek(pe_offset + 4)  # PE signature + machine type
+                    machine_type = struct.unpack('<H', f.read(2))[0]
+                    return '64' if machine_type == 0x8664 else '32'
+        else:
+            # For non-Windows, assume 64-bit
+            return '64'
+    except Exception as e:
+        self._logger.warning(f"Could not detect Chrome bitness: {e}")
+        return '64'  # Default to 64-bit
+
+def _get_python_bitness(self) -> str:
+    """Get Python interpreter bitness.
+    
+    Returns:
+        str: '32' or '64' indicating Python bitness
+    """
+    return '64' if struct.calcsize("P") * 8 == 64 else '32'
+
+def _download_chromedriver(self, version: str, bitness: str, target_path: Path) -> bool:
+    """Download and save ChromeDriver matching the specified version and bitness.
     
     Args:
-        url: URL to download ChromeDriver from
-        target_path: Path where ChromeDriver should be saved
+        version: Chrome major version number as string
+        bitness: '32' or '64' indicating required bitness
+        target_path: Path where to save the downloaded ChromeDriver
         
-    Raises:
-        BrowserError: If download or extraction fails
+    Returns:
+        bool: True if download was successful, False otherwise
     """
-    temp_dir = target_path.parent / "temp_chromedriver"
     try:
-        self._logger.info(f"Downloading ChromeDriver from: {url}")
+        # Construct download URL
+        base_url = "https://chromedriver.storage.googleapis.com"
+        url = f"{base_url}/{version}.0.0/chromedriver_win{bitness}.zip"
+        
+        self._logger.info(f"Downloading ChromeDriver {version} ({bitness}-bit) from: {url}")
         
         # Create temp directory
+        temp_dir = target_path.parent / "temp_chromedriver"
         temp_dir.mkdir(exist_ok=True)
         zip_path = temp_dir / "chromedriver.zip"
         
@@ -29,31 +104,29 @@ def _download_chromedriver(self, url: str, target_path: Path) -> None:
             zip_ref.extractall(temp_dir)
             
         # Find the chromedriver executable
-        chromedriver_exe = None
-        for file in temp_dir.glob("**/chromedriver*"):
-            if file.is_file() and not file.name.endswith('.zip'):
-                chromedriver_exe = file
-                break
-                
-        if not chromedriver_exe:
-            raise BrowserError("Could not find chromedriver executable in downloaded archive")
+        chromedriver_exe = next(temp_dir.glob("**/chromedriver*"), None)
+        if not chromedriver_exe or not chromedriver_exe.is_file():
+            self._logger.error("ChromeDriver executable not found in downloaded archive")
+            return False
             
         # Move to target location
         if target_path.exists():
             target_path.unlink()
         shutil.move(str(chromedriver_exe), str(target_path))
         
-        # Set executable permissions
+        # Set executable permissions on Unix-like systems
         if platform.system() != "Windows":
             target_path.chmod(0o755)
             
+        self._logger.info(f"Successfully downloaded ChromeDriver to: {target_path}")
+        return True
+        
     except Exception as e:
-        error_msg = f"Failed to download ChromeDriver: {e}"
-        self._logger.error(error_msg)
-        raise BrowserError(error_msg) from e
+        self._logger.error(f"Failed to download ChromeDriver: {e}")
+        return False
     finally:
         # Clean up temp directory
-        if temp_dir.exists():
+        if 'temp_dir' in locals() and temp_dir.exists():
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 # Fix the _setup_chrome_options method
@@ -121,8 +194,70 @@ def _cleanup_resources(self) -> None:
         finally:
             self._service = None
 
-# Add the start method
-@retry_on_failure(max_retries=3, delay=2, backoff=2, exceptions=(WebDriverException,))
+def _create_driver(self) -> webdriver.Chrome:
+    """Create and configure a Chrome WebDriver instance with automatic driver management.
+    
+    This method implements a multi-layered approach to WebDriver initialization:
+    1. First tries to use the configured chromedriver path
+    2. Falls back to webdriver-manager if available
+    3. Attempts to automatically download a matching ChromeDriver
+        
+    Returns:
+        webdriver.Chrome: Configured WebDriver instance
+            
+    Raises:
+        BrowserError: If all driver initialization methods fail
+    """
+    options = self._setup_chrome_options()
+    
+    # 1. Try using configured chromedriver path first
+    if self.config.chromedriver_path and self.config.chromedriver_path.exists():
+        try:
+            self._logger.info(f"Using configured ChromeDriver: {self.config.chromedriver_path}")
+            service = Service(executable_path=str(self.config.chromedriver_path))
+            return webdriver.Chrome(service=service, options=options)
+        except Exception as e:
+            self._logger.warning(f"Configured ChromeDriver failed: {e}")
+        
+    # 2. Detect Chrome version and bitness
+    chrome_version = self._get_chrome_version()
+    chrome_bitness = self._get_chrome_bitness()
+    python_bitness = self._get_python_bitness()
+    
+    self._logger.info(f"Detected - Chrome: {chrome_version} ({chrome_bitness}-bit), "
+                     f"Python: {python_bitness}-bit")
+    
+    # 3. If bitness matches, try to download matching ChromeDriver
+    if chrome_version and chrome_bitness == python_bitness:
+        driver_path = Path.home() / ".chromedriver" / f"chromedriver_{chrome_version}_{chrome_bitness}"
+        driver_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        if not driver_path.exists() and self._download_chromedriver(chrome_version, python_bitness, driver_path):
+            try:
+                service = Service(executable_path=str(driver_path))
+                return webdriver.Chrome(service=service, options=options)
+            except Exception as e:
+                self._logger.warning(f"Downloaded ChromeDriver failed: {e}")
+        
+    # 4. Fall back to webdriver-manager
+    try:
+        self._logger.info("Falling back to webdriver-manager for ChromeDriver")
+        service = Service(ChromeDriverManager().install())
+        return webdriver.Chrome(service=service, options=options)
+    except Exception as e:
+        self._logger.warning(f"webdriver-manager fallback failed: {e}")
+            
+    # 5. Final fallback - try system PATH
+    try:
+        self._logger.info("Attempting to use ChromeDriver from system PATH")
+        return webdriver.Chrome(options=options)
+    except Exception as e:
+        error_msg = (f"All ChromeDriver initialization methods failed. "
+                   f"Please ensure Chrome and ChromeDriver are properly installed.\n"
+                   f"Error: {e}")
+        self._logger.error(error_msg)
+        raise BrowserError(error_msg) from e
+
 def start(self) -> None:
     """
     Start the Chrome browser with the configured settings.
@@ -130,43 +265,31 @@ def start(self) -> None:
     Raises:
         BrowserError: If the browser fails to start
     """
-    if self._is_running and self.driver is not None:
+    if self._is_running:
         self._logger.warning("Browser is already running")
         return
-        
+            
     try:
-        self._logger.info("Starting Chrome browser...")
-        
-        # Set up Chrome options
-        options = self._setup_chrome_options()
-        
-        # Get ChromeDriver path
-        driver_path = self._get_chrome_driver_path()
-        
-        # Create Chrome service with the driver path
-        self._service = ChromeService(executable_path=str(driver_path))
-        
-        # Initialize WebDriver
-        self.driver = webdriver.Chrome(
-            service=self._service,
-            options=options
-        )
-        
-        # Set window size if specified
-        if self.config.window_size:
-            self.driver.set_window_size(*self.config.window_size)
-        else:
-            self.driver.maximize_window()
-        
+        # Create and configure the WebDriver
+        self._logger.info("Initializing Chrome browser...")
+        self._driver = self._create_driver()
         self._is_running = True
+            
+        # Set default window size if not in headless mode
+        if not self.config.headless and self.config.window_size:
+            self._driver.set_window_size(
+                self.config.window_size[0],
+                self.config.window_size[1]
+            )
+                
         self._logger.info("Chrome browser started successfully")
-        
+            
     except Exception as e:
-        self._logger.error(f"Failed to start Chrome browser: {e}", exc_info=True)
+        error_msg = f"Failed to start Chrome browser: {e}"
+        self._logger.error(error_msg)
         self._cleanup_resources()
-        raise BrowserError(f"Failed to start Chrome browser: {e}") from e
+        raise BrowserError(error_msg) from e
 
-# Add the stop method
 def stop(self) -> None:
     """Stop the Chrome browser and clean up resources."""
     if not self._is_running or not self.driver:

@@ -36,9 +36,13 @@ class ChromeDriverManager:
         machine = platform.machine().lower()
         
         if system == 'windows':
-            return 'win32'  # ChromeDriver for Windows is 32-bit but works on 64-bit
+            # Chrome for Testing uses 'win32' for 32-bit and 'win64' for 64-bit
+            return 'win64' if sys.maxsize > 2**32 else 'win32'
         elif system == 'darwin':
-            return 'mac64' if machine == 'x86_64' or machine == 'arm64' else 'mac64_m1'
+            # For macOS, check the architecture
+            if platform.processor() == 'arm' or platform.machine() == 'arm64':
+                return 'mac-arm64'  # Apple Silicon
+            return 'mac-x64'  # Intel
         elif system == 'linux':
             return 'linux64'
         else:

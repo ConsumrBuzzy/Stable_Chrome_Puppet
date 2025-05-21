@@ -73,56 +73,50 @@ def main():
         # Launch browser
         from core.browser.chrome import ChromeBrowser
         from core.config import ChromeConfig
+        import time
         
-        print("Launching Chrome browser...")
+        # Get URL from user
+        url = input("Enter URL to load (e.g., https://example.com): ").strip()
+        if not url:
+            print("No URL provided. Using default: https://example.com")
+            url = "https://example.com"
+            
+        # Ensure URL has a scheme
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+            
+        print(f"\nLaunching Chrome browser (headed mode) to load: {url}")
+        
+        # Configure browser (force headed mode)
         config = ChromeConfig(
-            headless=args.headless,
+            headless=False,  # Force headed mode
             window_size=(1366, 768),
             verbose=True
         )
         
         browser = ChromeBrowser(config=config)
         try:
+            # Start browser and navigate to URL
+            print("Starting browser...")
             browser.start()
-            print("\nBrowser launched successfully!")
-            print("Available commands:")
-            print("  - Press 'q' to quit")
-            print("  - Press 'o <url>' to open a URL")
-            print("  - Press 's' to take a screenshot")
-            print("  - Press 't' to get the page title")
+            print(f"Navigating to {url}...")
+            browser.navigate_to(url)
             
-            while True:
-                try:
-                    user_input = input("\n> ").strip().lower()
-                    if user_input == 'q':
-                        break
-                    elif user_input.startswith('o '):
-                        url = user_input[2:].strip()
-                        if not url.startswith(('http://', 'https://')):
-                            url = 'https://' + url
-                        print(f"Navigating to {url}...")
-                        browser.navigate_to(url)
-                        print(f"Current URL: {browser.get_current_url()}")
-                    elif user_input == 's':
-                        import os
-                        from datetime import datetime
-                        filename = f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                        browser.take_screenshot(filename)
-                        print(f"Screenshot saved as {os.path.abspath(filename)}")
-                    elif user_input == 't':
-                        print(f"Page title: {browser.driver.title}")
-                    else:
-                        print("Unknown command. Type 'q' to quit.")
-                except Exception as e:
-                    print(f"Error: {e}")
-                    continue
-                    
-        except KeyboardInterrupt:
-            print("\nKeyboard interrupt received...")
+            # Display page info
+            print(f"\nPage loaded successfully!")
+            print(f"Title: {browser.driver.title}")
+            print(f"URL: {browser.get_current_url()}")
+            print("\nBrowser will close automatically in 30 seconds...")
+            
+            # Wait for 30 seconds
+            time.sleep(30)
+            
         except Exception as e:
             print(f"\nError: {e}")
+            # Wait a bit before closing if there was an error
+            time.sleep(5)
         finally:
-            print("Shutting down browser...")
+            print("\nShutting down browser...")
             browser.stop()
             print("Browser closed.")
         return 0

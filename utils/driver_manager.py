@@ -79,48 +79,53 @@ class ChromeDriverManager:
     def get_matching_chromedriver_version(self) -> str:
         """Get the ChromeDriver version that matches the installed Chrome version."""
         try:
-            # First try to get the exact version match
+            # For Chrome 115+, we need to use Chrome for Testing
+            major_version = int(self.chrome_version.split('.')[0])
+            
+            if major_version >= 115:
+                # For Chrome 115+, we need to match the exact version
+                # ChromeDriver 136.x matches Chrome 136.x
+                return self.chrome_version
+                
+            # For older versions, try to get the matching version
             version_url = f"{self.CHROME_VERSION_URL}_{self.chrome_version}"
             response = requests.get(version_url, timeout=10)
             response.raise_for_status()
             return response.text.strip()
-        except requests.RequestException:
-            try:
-                # If exact version fails, try with just major version
-                major_version = self.chrome_version.split('.')[0]
-                version_url = f"{self.CHROME_VERSION_URL}_{major_version}"
-                response = requests.get(version_url, timeout=10)
-                response.raise_for_status()
-                return response.text.strip()
-            except requests.RequestException as e:
-                # If all else fails, try to get the latest version
-                try:
-                    self.logger.warning(f"Could not find matching ChromeDriver version, trying latest: {e}")
-                    response = requests.get(self.CHROME_VERSION_URL, timeout=10)
-                    response.raise_for_status()
-                    return response.text.strip()
-                except requests.RequestException as e:
-                    self.logger.error(f"Failed to get ChromeDriver version: {e}")
-                    return "114.0.5735.90"  # Fallback to a known working version
+            
+        except (requests.RequestException, ValueError, IndexError) as e:
+            self.logger.warning(f"Could not determine matching ChromeDriver version: {e}")
+            
+            # Return a known working version for Chrome 136
+            if self.chrome_version.startswith('136.'):
+                return "136.0.7103.114"  # Matching ChromeDriver for Chrome 136
+                
+            # Fallback to a known working version for older Chrome
+            return "114.0.5735.90"
     
     def get_driver_url(self, version: str) -> str:
         """Get the download URL for ChromeDriver."""
-        # ChromeDriver URLs follow this pattern:
-        # https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_win32.zip
-        # For Chrome 115 and above, the format is:
-        # https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/115.0.5790.98/win64/chromedriver-win64.zip
-        
-        # First, try to parse the version
         try:
             major_version = int(version.split('.')[0])
             
-            # For Chrome 115 and above
+            # For Chrome 115 and above - use Chrome for Testing URLs
             if major_version >= 115:
-                # Try the new Chrome for Testing URL format
-                filename = f"chromedriver-{self.platform}.zip"
-                return f"https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/{version}/{self.platform}/{filename}"
+                # Map platform to Chrome for Testing platform identifiers
+                platform_map = {
+                    'win32': 'win32',
+                    'win64': 'win64',
+                    'mac64': 'mac-x64',
+                    'mac-arm64': 'mac-arm64',
+                    'linux64': 'linux64',
+                }
+                
+                # Get the correct platform identifier
+                platform_id = platform_map.get(self.platform, 'win64')  # Default to win64 if not found
+                
+                # Construct the URL for Chrome for Testing
+                return f"https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/{version}/{platform_id}/chromedriver-{platform_id}.zip"
             
-            # For older versions
+            # For older versions (pre-115)
             filename = f"chromedriver_{self.platform}.zip"
             return f"{self.CHROME_DRIVER_BASE_URL}/{version}/{filename}"
             

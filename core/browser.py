@@ -119,13 +119,24 @@ class ChromePuppet:
             # Set up Chrome options
             chrome_options = self._create_chrome_options()
             
-            # Set up Chrome service
+            # Set up Chrome service with specific ChromeDriver version
             self._logger.debug("Setting up ChromeDriver...")
-            self._service = ChromeService(
-                ChromeDriverManager(
-                    chrome_type=self.config.chrome_type
-                ).install()
-            )
+            try:
+                # First try with specific version for Chrome 136
+                self._service = ChromeService(
+                    ChromeDriverManager(
+                        chrome_type=self.config.chrome_type,
+                        version="114.0.5735.90"  # Specific version known to work with Chrome 136
+                    ).install()
+                )
+            except Exception as e:
+                self._logger.warning(f"Failed to use specific ChromeDriver version, falling back to latest: {e}")
+                # Fall back to latest version if specific version fails
+                self._service = ChromeService(
+                    ChromeDriverManager(
+                        chrome_type=self.config.chrome_type
+                    ).install()
+                )
             
             # Initialize the WebDriver
             self._logger.debug("Initializing WebDriver...")

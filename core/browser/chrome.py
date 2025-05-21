@@ -41,98 +41,98 @@ class ChromeBrowser(BaseBrowser):
         self._is_running = False
 
     def _get_chrome_version(self) -> Optional[str]:
-    """Detect installed Chrome version.
-    
-    Returns:
-        str: Chrome version string or None if not found
-    """
-    try:
-        if platform.system() == "Windows":
-            import winreg
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
-                              r"Software\Google\Chrome\BLBeacon") as key:
-                version = winreg.QueryValueEx(key, 'version')[0]
-                return version.split('.')[0]  # Return major version
-        else:
-            # For macOS and Linux
-            import subprocess
-            result = subprocess.run(['google-chrome', '--version'], 
-                                 capture_output=True, text=True)
-            if result.returncode == 0:
-                return result.stdout.strip().split()[-1].split('.')[0]
-    except Exception as e:
-        self._logger.warning(f"Could not detect Chrome version: {e}")
-    return None
+        """Detect installed Chrome version.
+        
+        Returns:
+            str: Chrome version string or None if not found
+        """
+        try:
+            if platform.system() == "Windows":
+                import winreg
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+                                  r"Software\Google\Chrome\BLBeacon") as key:
+                    version = winreg.QueryValueEx(key, 'version')[0]
+                    return version.split('.')[0]  # Return major version
+            else:
+                # For macOS and Linux
+                import subprocess
+                result = subprocess.run(['google-chrome', '--version'], 
+                                     capture_output=True, text=True)
+                if result.returncode == 0:
+                    return result.stdout.strip().split()[-1].split('.')[0]
+        except Exception as e:
+            self._logger.warning(f"Could not detect Chrome version: {e}")
+        return None
 
     def _get_chrome_bitness(self) -> str:
-    """Detect Chrome installation bitness.
-    
-    Returns:
-        str: '32' or '64' indicating Chrome bitness
-    """
-    try:
-        if platform.system() == "Windows":
-            import winreg
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
-                              r"Software\Google\Chrome\BLBeacon") as key:
-                install_path = winreg.QueryValueEx(key, 'Path')[0]
-                chrome_exe = os.path.join(install_path, 'chrome.exe')
-                with open(chrome_exe, 'rb') as f:
-                    f.seek(0x3C)  # PE header offset
-                    pe_offset = struct.unpack('<I', f.read(4))[0]
-                    f.seek(pe_offset + 4)  # PE signature + machine type
-                    machine_type = struct.unpack('<H', f.read(2))[0]
-                    return '64' if machine_type == 0x8664 else '32'
-        else:
-            # For non-Windows, assume 64-bit
-            return '64'
-    except Exception as e:
-        self._logger.warning(f"Could not detect Chrome bitness: {e}")
-        return '64'  # Default to 64-bit
+        """Detect Chrome installation bitness.
+        
+        Returns:
+            str: '32' or '64' indicating Chrome bitness
+        """
+        try:
+            if platform.system() == "Windows":
+                import winreg
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+                                  r"Software\Google\Chrome\BLBeacon") as key:
+                    install_path = winreg.QueryValueEx(key, 'Path')[0]
+                    chrome_exe = os.path.join(install_path, 'chrome.exe')
+                    with open(chrome_exe, 'rb') as f:
+                        f.seek(0x3C)  # PE header offset
+                        pe_offset = struct.unpack('<I', f.read(4))[0]
+                        f.seek(pe_offset + 4)  # PE signature + machine type
+                        machine_type = struct.unpack('<H', f.read(2))[0]
+                        return '64' if machine_type == 0x8664 else '32'
+            else:
+                # For non-Windows, assume 64-bit
+                return '64'
+        except Exception as e:
+            self._logger.warning(f"Could not detect Chrome bitness: {e}")
+            return '64'  # Default to 64-bit
 
     def _get_python_bitness(self) -> str:
-    """Get Python interpreter bitness.
+        """Get Python interpreter bitness.
     
-    Returns:
-        str: '32' or '64' indicating Python bitness
-    """
-    return '64' if struct.calcsize("P") * 8 == 64 else '32'
+        Returns:
+            str: '32' or '64' indicating Python bitness
+        """
+        return '64' if struct.calcsize("P") * 8 == 64 else '32'
 
     def _download_chromedriver(self, version: str, bitness: str, target_path: Path) -> bool:
-    """Download and save ChromeDriver matching the specified version and bitness.
+        """Download and save ChromeDriver matching the specified version and bitness.
     
-    Args:
-        version: Chrome major version number as string
-        bitness: '32' or '64' indicating required bitness
-        target_path: Path where to save the downloaded ChromeDriver
+        Args:
+            version: Chrome major version number as string
+            bitness: '32' or '64' indicating required bitness
+            target_path: Path where to save the downloaded ChromeDriver
         
-    Returns:
-        bool: True if download was successful, False otherwise
-    """
-    try:
-        # Construct download URL
-        base_url = "https://chromedriver.storage.googleapis.com"
-        url = f"{base_url}/{version}.0.0/chromedriver_win{bitness}.zip"
+        Returns:
+            bool: True if download was successful, False otherwise
+        """
+        try:
+            # Construct download URL
+            base_url = "https://chromedriver.storage.googleapis.com"
+            url = f"{base_url}/{version}.0.0/chromedriver_win{bitness}.zip"
         
-        self._logger.info(f"Downloading ChromeDriver {version} ({bitness}-bit) from: {url}")
+            self._logger.info(f"Downloading ChromeDriver {version} ({bitness}-bit) from: {url}")
         
-        # Create temp directory
-        temp_dir = target_path.parent / "temp_chromedriver"
-        temp_dir.mkdir(exist_ok=True)
-        zip_path = temp_dir / "chromedriver.zip"
+            # Create temp directory
+            temp_dir = target_path.parent / "temp_chromedriver"
+            temp_dir.mkdir(exist_ok=True)
+            zip_path = temp_dir / "chromedriver.zip"
         
-        # Download the file
-        urllib.request.urlretrieve(url, zip_path)
+            # Download the file
+            urllib.request.urlretrieve(url, zip_path)
         
-        # Extract the file
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(temp_dir)
+            # Extract the file
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
             
-        # Find the chromedriver executable
-        chromedriver_exe = next(temp_dir.glob("**/chromedriver*"), None)
-        if not chromedriver_exe or not chromedriver_exe.is_file():
-            self._logger.error("ChromeDriver executable not found in downloaded archive")
-            return False
+            # Find the chromedriver executable
+            chromedriver_exe = next(temp_dir.glob("**/chromedriver*"), None)
+            if not chromedriver_exe or not chromedriver_exe.is_file():
+                self._logger.error("ChromeDriver executable not found in downloaded archive")
+                return False
             
         # Move to target location
         if target_path.exists():
@@ -146,12 +146,12 @@ class ChromeBrowser(BaseBrowser):
         self._logger.info(f"Successfully downloaded ChromeDriver to: {target_path}")
         return True
         
-    except Exception as e:
-        self._logger.error(f"Failed to download ChromeDriver: {e}")
-        return False
-    finally:
-        # Clean up temp directory
-        if 'temp_dir' in locals() and temp_dir.exists():
+        except Exception as e:
+            self._logger.error(f"Failed to download ChromeDriver: {e}")
+            return False
+        finally:
+            # Clean up temp directory
+            if 'temp_dir' in locals() and temp_dir.exists():
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 # Fix the _setup_chrome_options method

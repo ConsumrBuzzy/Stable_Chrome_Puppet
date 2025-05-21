@@ -106,11 +106,28 @@ class ChromeDriverManager:
     def get_driver_url(self, version: str) -> str:
         """Get the download URL for ChromeDriver."""
         # ChromeDriver URLs follow this pattern:
-        # https://chromedriver.storage.googleapis.com/2.41/chromedriver_win32.zip
-        # We need to use the major version number in the path
-        major_version = version.split('.')[0]
-        filename = f"chromedriver_{self.platform}.zip"
-        return f"{self.CHROME_DRIVER_BASE_URL}/{major_version}.0.0/{filename}"
+        # https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_win32.zip
+        # For Chrome 115 and above, the format is:
+        # https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/115.0.5790.98/win64/chromedriver-win64.zip
+        
+        # First, try to parse the version
+        try:
+            major_version = int(version.split('.')[0])
+            
+            # For Chrome 115 and above
+            if major_version >= 115:
+                # Try the new Chrome for Testing URL format
+                filename = f"chromedriver-{self.platform}.zip"
+                return f"https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/{version}/{self.platform}/{filename}"
+            
+            # For older versions
+            filename = f"chromedriver_{self.platform}.zip"
+            return f"{self.CHROME_DRIVER_BASE_URL}/{version}/{filename}"
+            
+        except (ValueError, IndexError) as e:
+            self.logger.warning(f"Error parsing version {version}, using fallback URL: {e}")
+            # Fallback to a known working version
+            return "https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_win32.zip"
     
     def download_driver(self, url: str, target_path: Path) -> None:
         """Download and extract ChromeDriver."""

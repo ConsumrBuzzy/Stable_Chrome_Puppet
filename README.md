@@ -44,32 +44,43 @@ from chrome_puppet import ChromePuppet
 # Create a browser instance and navigate to a page
 with ChromePuppet() as browser:
     browser.get("https://example.com")
-    print(f"Page title: {browser.driver.title}")
+    print(f"Page title: {browser.title}")
 ```
 
 For more detailed examples, see [EXAMPLES.md](EXAMPLES.md).
 
-## 🏗️ Project Structure
+## 🛠 Project Structure
 
 ```text
 chrome-puppet/
-├── core/                    # Core functionality
-│   ├── browser/            # Browser automation code
-│   │   ├── __init__.py
-│   │   ├── chrome.py        # Chrome browser implementation
-│   │   └── puppet.py       # High-level browser control
-│   └── config.py           # Configuration management
-├── tests/                  # Test suite
+├── core/                    # Core browser automation code
 │   ├── __init__.py
-│   ├── conftest.py
-│   └── test_browser.py     # Browser automation tests
-├── examples/               # Example scripts
-│   ├── browser_example.py  # Basic browser usage
-│   └── simple_chrome.py    # Minimal example
+│   ├── browser/             # Browser implementation
+│   │   ├── __init__.py
+│   │   ├── base.py          # Base browser class
+│   │   ├── chrome.py        # Chrome implementation
+│   │   ├── element.py       # Element interactions
+│   │   ├── exceptions.py    # Custom exceptions
+│   │   ├── navigation.py    # Navigation utilities
+│   │   └── screenshot.py    # Screenshot functionality
+│   ├── config.py            # Configuration management
+│   └── utils/               # Utility functions
+├── tests/                   # Test suite
+│   ├── __init__.py
+│   ├── base_test.py         # Base test class
+│   ├── conftest.py          # Pytest configuration
+│   ├── test_data/           # Test data files
+│   └── test_browser.py      # Browser automation tests
+├── examples/                # Example scripts
+│   └── browser_example.py   # Example usage
 ├── .gitignore
+├── CHANGELOG.md
+├── EXAMPLES.md
 ├── LICENSE
+├── pyproject.toml
 ├── README.md
-└── requirements*.txt       # Dependencies
+├── requirements.txt         # Runtime dependencies
+└── requirements-dev.txt     # Development dependencies
 ```
 
 ## 📚 Documentation
@@ -99,104 +110,32 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🧪 Running Tests
+## 📦 Installation
 
-To run the test suite, follow these steps:
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/chrome-puppet.git
+   cd chrome-puppet
+   ```
 
-1. Install the development dependencies:
+2. **Set up a virtual environment (recommended):**
+   ```bash
+   python -m venv venv
+   # On Windows:
+   .\venv\Scripts\Activate.ps1
+   # On macOS/Linux:
+   # source venv/bin/activate
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install -e .
+   ```
+   
+   For development:
    ```bash
    pip install -r requirements-dev.txt
    ```
-
-2. Run the tests:
-   ```bash
-   # Run all tests
-   pytest -v
-   
-   # Run only browser tests
-   pytest -m browser
-   
-   # Run tests with coverage report
-   pytest --cov=core --cov-report=term-missing
-   ```
-
-3. For debugging tests, you can run Chrome in headful mode:
-   ```bash
-   pytest --headful
-   ```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Write tests for your changes
-4. Run the test suite to ensure all tests pass
-5. Commit your changes (`git commit -m 'Add some amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-### Development Workflow
-
-1. Create a virtual environment and activate it
-2. Install development dependencies:
-   ```bash
-   pip install -r requirements-dev.txt
-   pre-commit install
-   ```
-3. Make your changes
-4. Run tests and linters:
-   ```bash
-   black .
-   flake8
-   mypy .
-   pytest
-   ```
-5. Update documentation if needed
-6. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 📬 Support
-
-For support, please open an issue on our [GitHub Issues](https://github.com/consumrbuzzy/chrome-puppet/issues) page.
-
-## 🔗 Related Projects
-
-- [Selenium](https://www.selenium.dev/) - Web browser automation
-- [Playwright](https://playwright.dev/) - Modern browser automation
-- [Puppeteer](https://pptr.dev/) - Node.js browser automation
-
-## 📊 Stats
-
-![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
-
----
-
-<div align="center">
-  Made with ❤️ by the Chrome Puppet Team
-</div>
-
-## Virtual Environment Setup
-
-### Windows
-
-```powershell
-# Create virtual environment
-python -m venv .venv
-
-# Activate the virtual environment
-.\\.venv\Scripts\Activate.ps1
-
-# Install dependencies
-pip install -r requirements.txt
-
-# For development
-pip install -r requirements-dev.txt
-```
 
 ### macOS/Linux
 

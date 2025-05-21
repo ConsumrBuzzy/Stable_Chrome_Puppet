@@ -7,7 +7,7 @@ Chrome Puppet is a Python-based browser automation framework designed for stabil
 ## Key Components (Memory Anchors)
 
 1. **Core Modules**
-   - `browser.py`: Main browser interface (legacy compatibility)
+   - `chrome.py`: Chrome browser implementation (replaces legacy browser.py)
    - `core/browser/chrome.py`: Chrome implementation
    - `core/browser/element.py`: Element interaction utilities
    - `core/browser/navigation.py`: Page navigation and waiting

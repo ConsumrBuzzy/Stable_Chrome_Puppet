@@ -82,23 +82,30 @@ class ChromeBrowser(BaseBrowser):
         Raises:
             BrowserError: If ChromeDriver cannot be found or installed
         """
-        # Try to find ChromeDriver in common locations
+        # Try webdriver-manager first to get the correct version
+        if ChromeDriverManager is not None:
+            try:
+                # Specify the exact ChromeDriver version that matches Chrome 136.0.7103.114
+                driver_path = ChromeDriverManager(version="136.0.7103.114").install()
+                self._logger.info(f"Using ChromeDriver from webdriver-manager: {driver_path}")
+                return driver_path
+            except Exception as e:
+                self._logger.warning(f"Failed to install ChromeDriver using webdriver-manager: {e}")
+        
+        # Fall back to common paths if webdriver-manager fails
         common_paths = [
-            "chromedriver",
             "chromedriver.exe",
-            "/usr/local/bin/chromedriver",
-            "/usr/bin/chromedriver",
+            "chromedriver",
+            str(Path.home() / ".wdm" / "drivers" / "chromedriver" / "win64" / "136.0.7103.114" / "chromedriver.exe"),
             "C:\\chromedriver\\chromedriver.exe",
             str(Path.home() / "chromedriver" / "chromedriver.exe")
         ]
         
-        # Check common paths first
+        # Check common paths
         for path in common_paths:
             if os.path.exists(path):
                 self._logger.info(f"Found ChromeDriver at: {path}")
                 return path
-        
-        # Try webdriver-manager if available
         if ChromeDriverManager is not None:
             try:
                 driver_path = ChromeDriverManager().install()

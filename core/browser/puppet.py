@@ -216,15 +216,36 @@ class ChromePuppet:
         """Context manager exit."""
         self.stop()
         return False  # Don't suppress exceptions
-    
+        
     @property
     def is_running(self) -> bool:
-        """Check if the browser is running."""
+        """Check if the browser is currently running."""
         return self._is_running and self._browser is not None
-    
+        
+    @property
+    def driver(self):
+        """Get the underlying WebDriver instance.
+        
+        Returns:
+            WebDriver: The underlying Selenium WebDriver instance
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running
+        """
+        if not self._is_running or self._browser is None:
+            raise BrowserNotInitializedError("Browser is not running")
+        return self._browser.driver
+        
     @property
     def browser(self) -> ChromeBrowser:
-        """Get the underlying browser instance."""
+        """Get the underlying browser instance.
+        
+        Returns:
+            ChromeBrowser: The underlying ChromeBrowser instance
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running
+        """
         if self._browser is None:
             raise BrowserNotInitializedError("Browser is not running")
         return self._browser

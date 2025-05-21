@@ -260,6 +260,38 @@ class ChromePuppet:
             self._logger.warning(f"Could not detect Chrome version: {e}")
             return '114.0.0.0'  # Fallback to a common version
 
+    def _get_chrome_driver_path(self) -> str:
+        """Get the path to the ChromeDriver executable."""
+        try:
+            # Try to use webdriver-manager to get the correct ChromeDriver
+            driver_path = ChromeDriverManager().install()
+            self._logger.info(f"Using ChromeDriver from webdriver-manager: {driver_path}")
+            return driver_path
+        except Exception as e:
+            self._logger.warning(f"Failed to get ChromeDriver from webdriver-manager: {e}")
+            # Fallback to system PATH
+            if os.name == 'nt':  # Windows
+                chromedriver_name = 'chromedriver.exe'
+            else:  # macOS/Linux
+                chromedriver_name = 'chromedriver'
+            
+            # Check common locations
+            common_paths = [
+                os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'win64', chromedriver_name),
+                os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'mac64', chromedriver_name),
+                os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'linux64', chromedriver_name),
+                'chromedriver',
+                '/usr/local/bin/chromedriver',
+                '/usr/bin/chromedriver'
+            ]
+            
+            for path in common_paths:
+                if os.path.exists(path):
+                    self._logger.info(f"Found ChromeDriver at: {path}")
+                    return path
+            
+            raise RuntimeError("Could not find ChromeDriver. Please ensure it's installed and in your PATH.")
+
     @_retry_on_failure(max_retries=3, delay=2, backoff=2, exceptions=(WebDriverException,))
     def _initialize_driver(self):
         """Initialize the Chrome WebDriver with the specified configuration."""
@@ -276,45 +308,28 @@ class ChromePuppet:
             
             # Add additional arguments
             for arg in self.config.chrome_arguments:
-                chrome_options.add_argument(arg)
+                if arg not in ["--headless", "--disable-gpu"]:  # Avoid duplicates
+                    chrome_options.add_argument(arg)
             
-            # Configure Chrome options
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--remote-debugging-port=9222")
+            # Get ChromeDriver path
+            driver_path = self._get_chrome_driver_path()
             
-            try:
-                # Get Chrome version
-                chrome_version = self._get_chrome_version()
-                self._logger.info(f"Detected Chrome version: {chrome_version}")
-                
-                # Install and get the ChromeDriver path
-                driver_path = ChromeDriverManager().install()
-                self._logger.info(f"Using ChromeDriver at: {driver_path}")
-                
-                # Create Chrome service with the driver path
-                self._service = ChromeService(executable_path=driver_path)
-                
-                # Initialize WebDriver with retry logic handled by the decorator
-                self.driver = webdriver.Chrome(
-                    service=self._service,
-                    options=chrome_options
-                )
-                
-                # Set window size if specified
-                if self.config.window_size:
-                    self.driver.set_window_size(*self.config.window_size)
-                else:
-                    self.driver.maximize_window()
-                
-                self._logger.info("Chrome WebDriver initialized successfully")
-                
-            except Exception as e:
-                self._logger.error(f"Error initializing WebDriver: {e}")
-                # Fallback to basic initialization without version detection
-                self._logger.info("Attempting fallback WebDriver initialization...")
-                self.driver = webdriver.Chrome(options=chrome_options)
-                self._logger.info("Fallback WebDriver initialization successful")
+            # Create Chrome service with the driver path
+            self._service = ChromeService(executable_path=driver_path)
+            
+            # Initialize WebDriver with retry logic handled by the decorator
+            self.driver = webdriver.Chrome(
+                service=self._service,
+                options=chrome_options
+            )
+            
+            # Set window size if specified
+            if self.config.window_size:
+                self.driver.set_window_size(*self.config.window_size)
+            else:
+                self.driver.maximize_window()
+            
+            self._logger.info("Chrome WebDriver initialized successfully")
             
         except Exception as e:
             self._logger.error(f"Failed to initialize Chrome WebDriver: {e}")
@@ -323,7 +338,23 @@ class ChromePuppet:
                     self._service.stop()
                 except Exception as stop_error:
                     self._logger.error(f"Error stopping Chrome service: {stop_error}")
-            raise
+            # Try one last fallback with minimal options
+            try:
+                self._logger.info("Attempting final fallback initialization...")
+                chrome_options = ChromeOptions()
+                chrome_options.add_argument("--no-sandbox")
+                chrome_options.add_argument("--disable-dev-shm-usage")
+                self.driver = webdriver.Chrome(options=chrome_options)
+                self._logger.info("Fallback WebDriver initialization successful")
+            except Exception as fallback_error:
+                self._logger.error(f"Fallback initialization failed: {fallback_error}")
+                raise RuntimeError(f"Failed to initialize Chrome WebDriver: {e}")
+            
+            # If we get here, the fallback worked
+            if self.config.window_size:
+                self.driver.set_window_size(*self.config.window_size)
+            else:
+                self.driver.maximize_window()
     
     def navigate_to(self, url: str, wait_time: Optional[int] = None) -> bool:
         """Navigate to the specified URL.

@@ -176,29 +176,45 @@ class ChromeDriverManager:
     
     def setup_chromedriver(self, target_dir: Optional[Path] = None) -> Path:
         """Set up ChromeDriver, downloading it if necessary."""
-        # Determine target directory
-        if target_dir is None:
-            target_dir = Path.home() / ".chromedriver"
-        
-        # Create target directory if it doesn't exist
-        target_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Determine ChromeDriver version
-        version = self.get_matching_chromedriver_version()
-        
-        # Determine platform-specific driver name
-        driver_name = "chromedriver.exe" if platform.system() == "Windows" else "chromedriver"
-        driver_path = target_dir / version / driver_name
-        
-        # Return if driver already exists
-        if driver_path.exists():
-            self.logger.debug(f"Using existing ChromeDriver at {driver_path}")
+        try:
+            # Determine target directory
+            if target_dir is None:
+                target_dir = Path.home() / ".chromedriver"
+            
+            # Create target directory if it doesn't exist
+            version = self.get_matching_chromedriver_version()
+            version_dir = target_dir / version
+            version_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Determine platform-specific driver name and path
+            is_windows = platform.system() == "Windows"
+            driver_name = "chromedriver.exe" if is_windows else "chromedriver"
+            driver_path = version_dir / driver_name
+            
+            # Return if driver already exists and is executable
+            if driver_path.exists():
+                self.logger.debug(f"Using existing ChromeDriver at {driver_path}")
+                return driver_path
+            
+            # Download and extract ChromeDriver
+            self.logger.info(f"Downloading ChromeDriver {version} for {self.platform}")
+            driver_url = self.get_driver_url(version)
+            self.download_driver(driver_url, driver_path)
+            
+            # Verify the driver was downloaded and is executable
+            if not driver_path.exists():
+                raise RuntimeError(f"Failed to locate ChromeDriver at {driver_path} after download")
+                
+            # Make the driver executable (Unix-like systems)
+            if not is_windows:
+                driver_path.chmod(0o755)
+                
+            self.logger.info(f"Successfully set up ChromeDriver at {driver_path}")
             return driver_path
-        
-        # Download and extract ChromeDriver
-        driver_url = self.get_driver_url(version)
-        self.download_driver(driver_url, driver_path)
-        
+            
+        except Exception as e:
+            self.logger.error(f"Failed to set up ChromeDriver: {e}")
+            raise
         return driver_path
 
 def ensure_chromedriver_available() -> str:

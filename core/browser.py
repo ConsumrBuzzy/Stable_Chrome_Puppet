@@ -203,41 +203,61 @@ class ChromePuppet:
             bool: True if navigation was successful, False otherwise
         """
         try:
-            # Clean and validate URL
+            # Clean the URL
             url = url.strip()
             
-            # Check if URL has a scheme, add https:// if missing
+            # Simple URL formatting - just add https:// if no scheme is present
             if not url.startswith(('http://', 'https://')):
                 url = f'https://{url}'
             
-            # Ensure URL is properly formatted
-            if not re.match(r'^https?://[\w\-.]+\.[a-z]{2,}(?:/\S*)?$', url, re.IGNORECASE):
-                self._logger.error(f"Invalid URL format: {url}")
-                return False
-                
-            self._logger.info(f"Navigating to {url}")
+            self._logger.info(f"Attempting to navigate to: {url}")
             
-            # Set page load timeout
+            # Set a reasonable page load timeout
             wait = wait_time or self.config.implicit_wait
             self.driver.set_page_load_timeout(wait)
             
-            # Navigate to URL
-            self.driver.get(url)
+            # Try to navigate to the URL
+            try:
+                self.driver.get(url)
+                self._logger.info("Page load command sent successfully")
+            except Exception as e:
+                self._logger.error(f"Error during driver.get(): {str(e)}")
+                raise
             
-            # Wait for page to load completely
-            WebDriverWait(self.driver, wait).until(
-                lambda d: d.execute_script('return document.readyState') == 'complete'
-            )
+            # Wait for the page to load completely
+            try:
+                WebDriverWait(self.driver, wait).until(
+                    lambda d: d.execute_script('return document.readyState') == 'complete'
+                )
+                self._logger.info("Page loaded successfully")
+            except Exception as e:
+                self._logger.warning(f"Page load check warning: {str(e)}")
+                # Continue even if the readyState check fails
             
-            # Take a screenshot for verification
-            self.take_screenshot("page_loaded")
-            self._logger.info(f"Successfully loaded {url}")
+            # Take a screenshot to verify the page loaded
+            screenshot_path = self.take_screenshot("page_loaded")
+            if screenshot_path:
+                self._logger.info(f"Screenshot saved to: {screenshot_path}")
+            
+            # Get the current URL for verification
+            current_url = self.driver.current_url
+            self._logger.info(f"Current URL: {current_url}")
+            
+            # Get the page title
+            try:
+                title = self.driver.title
+                self._logger.info(f"Page title: {title}")
+            except Exception as e:
+                self._logger.warning(f"Could not get page title: {str(e)}")
+            
             return True
             
         except Exception as e:
-            self._logger.error(f"Error navigating to {url}: {str(e)}", exc_info=True)
+            self._logger.error(f"Navigation failed: {str(e)}", exc_info=True)
             # Take a screenshot on error
-            self.take_screenshot("navigation_error")
+            error_screenshot = self.take_screenshot("navigation_error")
+            if error_screenshot:
+                self._logger.info(f"Error screenshot saved to: {error_screenshot}")
             return False
     
     def quit(self):

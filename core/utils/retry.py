@@ -1,4 +1,4 @@
-""
+"""
 Retry decorators for handling transient failures.
 
 This module provides decorators for retrying functions that may fail temporarily.
@@ -6,7 +6,7 @@ This module provides decorators for retrying functions that may fail temporarily
 import time
 import random
 from functools import wraps
-from typing import Any, Callable, Type, Tuple, Union, List, TypeVar, Optional
+from typing import Any, Callable, Type, Tuple, Union, TypeVar, Optional
 
 T = TypeVar('T')
 
@@ -18,7 +18,7 @@ def retry_on_exception(
     max_delay: float = 60.0,
     logger: Optional[Callable[[str], None]] = None
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
-    """Decorator to retry a function when specified exceptions are raised.
+    """Decorate a function to retry on specified exceptions.
     
     Args:
         max_retries: Maximum number of retries before giving up
@@ -76,7 +76,7 @@ def retry_with_timeout(
     check_interval: float = 1.0,
     logger: Optional[Callable[[str], None]] = None
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
-    """Decorator to retry a function until it succeeds or a timeout is reached.
+    """Decorate a function to retry until success or timeout.
     
     Args:
         timeout: Maximum time in seconds to keep retrying

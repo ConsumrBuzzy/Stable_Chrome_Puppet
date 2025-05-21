@@ -28,6 +28,7 @@ A robust and extensible Chrome browser automation tool built with Selenium and P
 ### Quick Start (Windows)
 
 1. **Clone the repository**
+
    ```powershell
    git clone https://github.com/consumrbuzzy/chrome-puppet.git
    cd chrome-puppet
@@ -48,6 +49,7 @@ A robust and extensible Chrome browser automation tool built with Selenium and P
 ### Manual Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/consumrbuzzy/chrome-puppet.git
    cd chrome-puppet

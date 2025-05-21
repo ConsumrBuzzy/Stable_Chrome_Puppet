@@ -2,15 +2,21 @@
 import os
 import time
 import logging
-from datetime import datetime
-from typing import Optional, Dict, Any, List, Union, Tuple
+import subprocess
+import sys
+import platform
+from typing import Optional, Dict, Any, List, Union, Tuple, Callable, TypeVar, cast
+from functools import wraps
+from dataclasses import dataclass
 from pathlib import Path
 
+# Selenium imports
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
@@ -18,17 +24,20 @@ from selenium.common.exceptions import (
     TimeoutException,
     NoSuchElementException,
     ElementNotInteractableException,
-    ElementClickInterceptedException,
     StaleElementReferenceException,
-    ElementNotVisibleException
+    ElementClickInterceptedException,
+    NoSuchWindowException,
+    InvalidSessionIdException,
+    WebDriverException
 )
-from functools import wraps
-import random
-import time
+
+# Third-party imports
 from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.os_manager import ChromeType
-import re
-import shutil
+from webdriver_manager.core.utils import ChromeType
+
+# Local imports
+from .config import ChromeConfig
+from .system_info import log_system_info, get_system_info
 import sys
 import subprocess
 from packaging import version
@@ -262,6 +271,45 @@ class ChromePuppet:
 
     def _get_chrome_driver_path(self) -> str:
         """Get the path to the ChromeDriver executable."""
+        system_info = get_system_info()
+        is_64bit = system_info['os']['is_64bit']
+        
+        try:
+            # Try to use webdriver-manager to get the correct ChromeDriver
+            driver_path = ChromeDriverManager().install()
+            self._logger.info(f"Using ChromeDriver from webdriver-manager: {driver_path}")
+            return driver_path
+        except Exception as e:
+            self._logger.warning(f"Failed to get ChromeDriver from webdriver-manager: {e}")
+            
+            # Fallback to common locations
+            chromedriver_name = 'chromedriver.exe' if os.name == 'nt' else 'chromedriver'
+            
+            # Check common locations
+            common_paths = [
+                os.path.join(os.path.dirname(__file__), 'bin', chromedriver_name),
+                os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'win64' if is_64bit else 'win32', chromedriver_name),
+                os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'mac64', chromedriver_name),
+                os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'linux64', chromedriver_name),
+                'chromedriver',
+                '/usr/local/bin/chromedriver',
+                '/usr/bin/chromedriver',
+                os.path.join(os.environ.get('PROGRAMFILES', ''), 'ChromeDriver', chromedriver_name),
+                os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), 'ChromeDriver', chromedriver_name)
+            ]
+            
+            for path in common_paths:
+                if os.path.exists(path):
+                    self._logger.info(f"Found ChromeDriver at: {path}")
+                    return path
+            
+            raise RuntimeError(
+                "Could not find or download ChromeDriver. "
+                f"System: {system_info['os']['system']} {system_info['os']['machine']} "
+                f"(64-bit: {is_64bit})\n"
+                "Please ensure it's installed and in your PATH, or install it manually from "
+                "https://chromedriver.chromium.org/downloads"
+            )
         try:
             # First, try to determine system architecture
             import platform
@@ -317,6 +365,9 @@ class ChromePuppet:
     @_retry_on_failure(max_retries=3, delay=2, backoff=2, exceptions=(WebDriverException,))
     def _initialize_driver(self):
         """Initialize the Chrome WebDriver with the specified configuration."""
+        # Log system information at the start of initialization
+        log_system_info()
+        
         try:
             self._logger.info("Initializing Chrome WebDriver...")
             
@@ -332,6 +383,16 @@ class ChromePuppet:
             for arg in self.config.chrome_arguments:
                 if arg not in ["--headless", "--disable-gpu"]:  # Avoid duplicates
                     chrome_options.add_argument(arg)
+                    
+            # Add common arguments for stability
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--remote-debugging-port=9222")
+            chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+            
+            # Disable automation flags that might trigger bot detection
+            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            chrome_options.add_experimental_option('useAutomationExtension', False)
             
             # Get ChromeDriver path
             driver_path = self._get_chrome_driver_path()

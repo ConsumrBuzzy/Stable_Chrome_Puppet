@@ -81,9 +81,83 @@ A robust and extensible Chrome browser automation tool built with Selenium and P
    pip install -r requirements-dev.txt
    ```
 
+## Project Structure
+
+```
+chrome-puppet/
+├── .github/                 # GitHub workflows and issue templates
+├── core/                    # Core browser automation code
+│   ├── __init__.py
+│   ├── browser.py          # Main browser automation class
+│   ├── config.py           # Configuration management
+│   └── orchestrator.py     # High-level browser orchestration
+├── examples/               # Example scripts
+├── screenshots/            # Directory for saved screenshots
+├── tests/                  # Test suite
+│   ├── __init__.py
+│   ├── base_test.py        # Base test class
+│   ├── test_basic.py       # Basic functionality tests
+│   ├── test_browser_init.py # Browser initialization tests
+│   └── test_navigation.py  # Navigation tests
+├── utils/                  # Utility functions
+│   ├── __init__.py
+│   └── utils.py            # Helper utilities
+├── .env.example           # Example environment variables
+├── .gitignore
+├── CHANGELOG.md           # Project changelog
+├── LICENSE
+├── main.py                # Command-line interface
+├── pyproject.toml         # Project metadata and build configuration
+├── README.md              # This file
+├── requirements-dev.txt    # Development dependencies
+├── requirements.txt       # Runtime dependencies
+└── setup.py               # Package installation script
+```
+
+## Virtual Environment Setup
+
+### Windows
+
+```powershell
+# Create virtual environment
+python -m venv .venv
+
+# Activate the virtual environment
+.\\.venv\Scripts\Activate.ps1
+
+# Install dependencies
+pip install -r requirements.txt
+
+# For development
+pip install -r requirements-dev.txt
+```
+
+### macOS/Linux
+
+```bash
+# Create virtual environment
+python3 -m venv .venv
+
+# Activate the virtual environment
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# For development
+pip install -r requirements-dev.txt
+```
+
+### Using the Virtual Environment
+
+- To activate the virtual environment, run the appropriate command above
+- Your command prompt should show `(.venv)` at the beginning when activated
+- To deactivate, simply type `deactivate`
+- Always activate the virtual environment before running the project
+
 ## Environment Variables
 
-Create a `.env` file in the project root with the following variables:
+Create a `.env` file in the project root based on `.env.example`:
 
 ```env
 # Chrome settings
@@ -94,6 +168,10 @@ CHROME_IMPLICIT_WAIT=10
 # Logging
 LOG_LEVEL=INFO
 LOG_FILE=chrome_puppet.log
+
+# Browser settings
+CHROME_PATH=auto  # Set to 'auto' for auto-detection or specify path
+CHROME_VERSION_OVERRIDE=  # Leave empty for auto-detection
 ```
 
 ## Quick Start

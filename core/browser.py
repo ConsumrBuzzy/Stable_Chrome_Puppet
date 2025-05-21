@@ -24,7 +24,7 @@ from webdriver_manager.core.os_manager import ChromeType
 from bs4 import BeautifulSoup
 
 from core.config import ChromeConfig, DEFAULT_CONFIG
-from core.utils import (
+from utils.utils import (
     get_default_download_dir,
     ensure_dir,
     is_chrome_installed,

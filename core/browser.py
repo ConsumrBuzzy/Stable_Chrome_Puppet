@@ -89,7 +89,8 @@ class ChromePuppet:
         
         return logger
         
-    def _retry_on_failure(self, max_retries=3, delay=1, backoff=2, exceptions=(Exception,)):
+    @staticmethod
+    def _retry_on_failure(max_retries=3, delay=1, backoff=2, exceptions=(Exception,)):
         """Decorator for retrying a function upon exceptions.
         
         Args:
@@ -100,22 +101,24 @@ class ChromePuppet:
         """
         def decorator(func):
             @wraps(func)
-            def wrapper(*args, **kwargs):
+            def wrapper(self, *args, **kwargs):
                 retries = 0
                 current_delay = delay
                 
                 while retries < max_retries:
                     try:
-                        return func(*args, **kwargs)
+                        return func(self, *args, **kwargs)
                     except exceptions as e:
                         retries += 1
                         if retries == max_retries:
-                            self._logger.error(f"Max retries ({max_retries}) reached for {func.__name__}")
+                            logger = getattr(self, '_logger', logging.getLogger(__name__))
+                            logger.error(f"Max retries ({max_retries}) reached for {func.__name__}")
                             raise
                         
                         # Add jitter to avoid thundering herd problem
                         sleep_time = current_delay * (1 + random.random() * 0.1)
-                        self._logger.warning(
+                        logger = getattr(self, '_logger', logging.getLogger(__name__))
+                        logger.warning(
                             f"Retry {retries}/{max_retries} for {func.__name__} after error: {str(e)}. "
                             f"Retrying in {sleep_time:.2f}s..."
                         )

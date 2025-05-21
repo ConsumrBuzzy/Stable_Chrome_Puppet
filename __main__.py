@@ -71,16 +71,60 @@ def main():
     
     elif args.command == 'browser':
         # Launch browser
-        from core import ChromePuppet
-        browser = ChromePuppet(headless=args.headless)
+        from core.browser.chrome import ChromeBrowser
+        from core.config import ChromeConfig
+        
+        print("Launching Chrome browser...")
+        config = ChromeConfig(
+            headless=args.headless,
+            window_size=(1366, 768),
+            verbose=True
+        )
+        
+        browser = ChromeBrowser(config=config)
         try:
-            print("Browser launched successfully!")
-            print("Press Ctrl+C to exit...")
+            browser.start()
+            print("\nBrowser launched successfully!")
+            print("Available commands:")
+            print("  - Press 'q' to quit")
+            print("  - Press 'o <url>' to open a URL")
+            print("  - Press 's' to take a screenshot")
+            print("  - Press 't' to get the page title")
+            
             while True:
-                pass
+                try:
+                    user_input = input("\n> ").strip().lower()
+                    if user_input == 'q':
+                        break
+                    elif user_input.startswith('o '):
+                        url = user_input[2:].strip()
+                        if not url.startswith(('http://', 'https://')):
+                            url = 'https://' + url
+                        print(f"Navigating to {url}...")
+                        browser.navigate_to(url)
+                        print(f"Current URL: {browser.get_current_url()}")
+                    elif user_input == 's':
+                        import os
+                        from datetime import datetime
+                        filename = f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                        browser.take_screenshot(filename)
+                        print(f"Screenshot saved as {os.path.abspath(filename)}")
+                    elif user_input == 't':
+                        print(f"Page title: {browser.driver.title}")
+                    else:
+                        print("Unknown command. Type 'q' to quit.")
+                except Exception as e:
+                    print(f"Error: {e}")
+                    continue
+                    
         except KeyboardInterrupt:
-            print("\nShutting down browser...")
-            browser.quit()
+            print("\nKeyboard interrupt received...")
+        except Exception as e:
+            print(f"\nError: {e}")
+        finally:
+            print("Shutting down browser...")
+            browser.stop()
+            print("Browser closed.")
         return 0
     
     else:

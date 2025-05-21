@@ -67,16 +67,16 @@ class ChromeWebDriverBase:
             str: The page source HTML, or None if an error occurs.
         """
         if not self.driver:
-            print("WebDriver not initialized.")
+            logger.error("WebDriver not initialized.")
             return None
         try:
             self.driver.get(url)
-            print(f"Navigated to: {url}")
+            logger.info(f"Navigated to: {url}")
             # Simple wait for dynamic content. For complex pages, use Selenium's explicit waits.
             time.sleep(wait_time)
             return self.driver.page_source
         except Exception as e:
-            print(f"Error navigating to {url} or getting page source: {e}")
+            logger.error(f"Error navigating to {url} or getting page source: {e}")
             return None
 
     def get_soup(self, url, wait_time=5):

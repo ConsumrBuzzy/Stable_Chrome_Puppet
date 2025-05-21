@@ -53,6 +53,25 @@ class ChromePuppetOrchestrator:
             finally:
                 self.browser = None
 
+    def load_url(self, url: str, wait_time: Optional[int] = None) -> bool:
+        """Load a URL in the browser.
+        
+        Args:
+            url: The URL to load
+            wait_time: Time in seconds to wait for page load. If None, uses config value.
+            
+        Returns:
+            bool: True if navigation was successful, False otherwise
+        """
+        if self.browser is None:
+            self.start_browser()
+            
+        try:
+            return self.browser.navigate_to(url, wait_time)
+        except Exception as e:
+            logger.error(f"Error loading URL {url}: {e}", exc_info=True)
+            return False
+    
     def execute_task(self, task: str, **kwargs: Any) -> Any:
         """Execute a browser automation task.
         
@@ -69,8 +88,11 @@ class ChromePuppetOrchestrator:
         if self.browser is None:
             self.start_browser()
             
-        if not hasattr(self.browser, task):
+        if not hasattr(self.browser, task) and task != 'load_url':
             raise ValueError(f"Unknown task: {task}")
+            
+        if task == 'load_url':
+            return self.load_url(**kwargs)
             
         method = getattr(self.browser, task)
         return method(**kwargs)

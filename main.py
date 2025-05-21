@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def load_url(url, headless=True, wait_time=5):
+def load_url(url, headless=False, wait_time=10):
     """
     Load a URL in Chrome and return the page information.
     
@@ -40,10 +40,22 @@ def load_url(url, headless=True, wait_time=5):
     Returns:
         dict: Dictionary containing page information or error message
     """
+    # Set up logging
+    logger.info(f"🚀 Loading URL: {url}")
+    logger.info(f"   Headless: {headless}")
+    logger.info(f"   Wait time: {wait_time} seconds")
+    
     config = ChromeConfig(
         headless=headless,
         window_size=(1920, 1080),
-        implicit_wait=wait_time
+        implicit_wait=wait_time,
+        chrome_arguments=[
+            '--no-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-extensions',
+            '--remote-debugging-port=9222'
+        ]
     )
     
     orchestrator = None
@@ -77,32 +89,15 @@ def load_url(url, headless=True, wait_time=5):
 
 def parse_arguments():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description='Chrome Puppet - Load and interact with web pages using Chrome automation.'
-    )
-    parser.add_argument(
-        'url',
-        help='URL to load in the browser',
-        type=str
-    )
-    parser.add_argument(
-        '--headless',
-        help='Run in headless mode (default: True)',
-        action='store_true',
-        default=True
-    )
-    parser.add_argument(
-        '--visible',
-        help='Run with visible browser window',
-        action='store_false',
-        dest='headless'
-    )
-    parser.add_argument(
-        '--wait',
-        help='Time in seconds to wait for page load (default: 5)',
-        type=int,
-        default=5
-    )
+    parser = argparse.ArgumentParser(description='Chrome Puppet - Browser Automation Tool')
+    parser.add_argument('url', nargs='?', default='https://www.google.com', 
+                      help='URL to load (default: https://www.google.com)')
+    parser.add_argument('--headless', action='store_true', 
+                      help='Run in headless mode')
+    parser.add_argument('--visible', dest='headless', action='store_false', 
+                      help='Run in visible mode')
+    parser.add_argument('--wait', type=int, default=10, 
+                      help='Wait time in seconds (default: 10)')
     return parser.parse_args()
 
 

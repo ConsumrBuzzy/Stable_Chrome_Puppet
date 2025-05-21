@@ -153,18 +153,17 @@ class ChromePuppet:
             for arg in self.config.chrome_arguments:
                 chrome_options.add_argument(arg)
             
-            # Set up Chrome service with version detection
-            chrome_version = self._get_chrome_version()
-            self._logger.info(f"Detected Chrome version: {chrome_version}")
+            # Configure ChromeDriver manager
+            self._logger.info("Setting up ChromeDriver...")
             
-            # Configure ChromeDriver manager with version detection
-            driver_manager = ChromeDriverManager(
-                version=chrome_version.split('.')[0],  # Use major version
-                chrome_type=ChromeType.CHROMIUM if self.config.chromium else ChromeType.GOOGLE
-            )
+            # Get the appropriate Chrome type
+            chrome_type = ChromeType.CHROMIUM if self.config.chromium else ChromeType.GOOGLE
+            
+            # Initialize ChromeDriver manager
+            driver_manager = ChromeDriverManager(chrome_type=chrome_type).install()
             
             # Set up Chrome service
-            self._service = ChromeService(driver_manager.install())
+            self._service = ChromeService(driver_manager)
             
             # Initialize WebDriver with retry logic
             max_retries = 3
@@ -192,6 +191,48 @@ class ChromePuppet:
         except Exception as e:
             self._logger.error(f"Failed to initialize Chrome WebDriver: {str(e)}")
             raise
+    
+    def navigate_to(self, url: str, wait_time: Optional[int] = None) -> bool:
+        """Navigate to the specified URL.
+        
+        Args:
+            url: The URL to navigate to
+            wait_time: Time in seconds to wait for page load. If None, uses config value.
+            
+        Returns:
+            bool: True if navigation was successful, False otherwise
+        """
+        if not url.startswith(('http://', 'https://')):
+            url = f'https://{url}'
+            
+        try:
+            self._logger.info(f"Navigating to {url}")
+            self.driver.get(url)
+            
+            # Wait for page to load
+            wait = wait_time or self.config.implicit_wait
+            WebDriverWait(self.driver, wait).until(
+                lambda d: d.execute_script('return document.readyState') == 'complete'
+            )
+            return True
+            
+        except Exception as e:
+            self._logger.error(f"Error navigating to {url}: {str(e)}")
+            return False
+    
+    def quit(self):
+        """Close the browser and clean up resources."""
+        try:
+            if self.driver:
+                self._logger.info("Closing browser...")
+                self.driver.quit()
+                self.driver = None
+            if self._service:
+                self._service.stop()
+                self._service = None
+            self._logger.info("Browser closed")
+        except Exception as e:
+            self._logger.error(f"Error while closing browser: {e}")
     
     def _create_chrome_options(self) -> ChromeOptions:
         """Create and configure Chrome options based on the config."""

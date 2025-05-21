@@ -1,72 +1,65 @@
-# Chrome Puppet
+<div align="center">
+  <h1>Chrome Puppet</h1>
+  <p>
+    <strong>Automate Chrome with confidence</strong> - A robust, production-ready browser automation framework
+  </p>
+  
+  <p>
+    <a href="#features">Features</a> •
+    <a href="#quick-start">Quick Start</a> •
+    <a href="#documentation">Documentation</a> •
+    <a href="#contributing">Contributing</a>
+  </p>
+</div>
 
-A robust and extensible Chrome browser automation tool built with Selenium and Python. This project provides a stable and maintainable way to automate Chrome/Chromium browsers with built-in error handling, configuration management, and BeautifulSoup integration.
+Chrome Puppet is a Python framework that makes browser automation simple and reliable. Built on top of Selenium, it provides a clean, intuitive API for automating Chrome/Chromium browsers with built-in best practices for stability and maintainability.
 
-## Features
+Whether you're building web scrapers, automated tests, or browser-based workflows, Chrome Puppet handles the complexities so you can focus on your automation logic.
 
-- 🚀 Self-contained Chrome and ChromeDriver management
-- 🔄 Automatic browser version detection and compatibility handling
-- 🧩 Extensible base class for different website platforms
-- 🛡️ Built-in error handling and recovery
-- 🖥️ Support for both headless and headed modes
-- 🔍 Integration with BeautifulSoup for HTML parsing
-- 🧹 Automatic resource cleanup
-- ⏱️ Configurable wait strategies
-- 📊 Comprehensive logging
-- 📸 Screenshot capture with timestamps
-- 💾 Configurable download directories
-- 🔄 Context manager support for resource cleanup
+## ✨ Features
 
-## System Requirements
+### Core Capabilities
+- **Stable Automation**: Built-in retries and error recovery
+- **Modern API**: Intuitive Python interface for browser control
+- **Cross-Platform**: Works on Windows, macOS, and Linux
 
-- Python 3.8 or higher
-- Chrome/Chromium browser installed
+### Developer Experience
+- **Automatic Setup**: Handles ChromeDriver management
+- **Comprehensive Logging**: Detailed activity tracking
+- **Debugging Tools**: Screenshots, page source, and console logs
+
+### Performance
+- **Parallel Execution**: Built-in support for concurrent tasks
+- **Resource Optimization**: Configurable memory and CPU usage
+- **Fast Execution**: Optimized selectors and waiting strategies
+
+### Extensibility
+- **Plugin System**: Easily extend functionality
+- **Custom Actions**: Add your own browser interactions
+- **Hooks & Events**: Respond to browser events programmatically
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.8+
+- Chrome/Chromium browser
 - Git (for development)
 
-## Installation
+### Installation
 
-### Quick Start (Windows)
-
-1. **Clone the repository**
-
-   ```powershell
-   git clone https://github.com/consumrbuzzy/chrome-puppet.git
-   cd chrome-puppet
-   ```
-
-2. **Run the setup script**
-
-   ```powershell
-   .\setup_env.ps1
-   ```
-
-   For development with additional tools:
-
-   ```powershell
-   .\setup_env.ps1 -Dev
-   ```
-
-### Manual Setup
-
-1. **Clone the repository**
-
+1. **Clone and set up the project**
    ```bash
    git clone https://github.com/consumrbuzzy/chrome-puppet.git
    cd chrome-puppet
    ```
 
 2. **Set up a virtual environment**
-
-   **Windows:**
-
-   ```powershell
+   ```bash
+   # Windows
    python -m venv .venv
    .\.venv\Scripts\Activate.ps1
-   ```
-
-   **macOS/Linux:**
-
-   ```bash
+   
+   # macOS/Linux
    python3 -m venv .venv
    source .venv/bin/activate
    ```
@@ -76,43 +69,101 @@ A robust and extensible Chrome browser automation tool built with Selenium and P
    pip install -r requirements.txt
    ```
 
-   For development:
+4. **Run the example**
    ```bash
-   pip install -r requirements-dev.txt
+   python examples/basic_usage.py
    ```
 
-## Project Structure
+## 📚 Documentation
+
+Explore our comprehensive documentation:
+
+- [AGENT.md](AGENT.md) - Technical reference for developers and AI agents
+- [API Reference](docs/API.md) - Detailed API documentation
+- [Examples](examples/) - Practical code samples
+- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+
+### Basic Usage
+
+```python
+from core.browser import ChromeBrowser
+from core.config import ChromeConfig
+
+# Configure browser
+config = ChromeConfig(
+    headless=False,
+    window_size=(1280, 1024)
+)
+
+# Initialize browser
+with ChromeBrowser(config) as browser:
+    # Navigate to a website
+    browser.get("https://example.com")
+    
+    # Take a screenshot
+    browser.screenshot.take_screenshot("example.png")
+    
+    # Find and interact with elements
+    search_box = browser.element.find_element("css", "input[type='search']")
+    browser.element.send_keys("Hello, World!", element=search_box)
+    
+    # Get page content
+    content = browser.get_page_source()
+    print(f"Page title: {browser.get_title()}")
+```
+
+## 🏗️ Project Structure
 
 ```
 chrome-puppet/
-├── .github/                 # GitHub workflows and issue templates
-├── core/                    # Core browser automation code
-│   ├── __init__.py
-│   ├── browser.py          # Main browser automation class
-│   ├── config.py           # Configuration management
-│   └── orchestrator.py     # High-level browser orchestration
-├── examples/               # Example scripts
-├── screenshots/            # Directory for saved screenshots
-├── tests/                  # Test suite
-│   ├── __init__.py
-│   ├── base_test.py        # Base test class
-│   ├── test_basic.py       # Basic functionality tests
-│   ├── test_browser_init.py # Browser initialization tests
-│   └── test_navigation.py  # Navigation tests
-├── utils/                  # Utility functions
-│   ├── __init__.py
-│   └── utils.py            # Helper utilities
-├── .env.example           # Example environment variables
-├── .gitignore
-├── CHANGELOG.md           # Project changelog
-├── LICENSE
-├── main.py                # Command-line interface
-├── pyproject.toml         # Project metadata and build configuration
-├── README.md              # This file
-├── requirements-dev.txt    # Development dependencies
-├── requirements.txt       # Runtime dependencies
-└── setup.py               # Package installation script
+├── .github/            # GitHub workflows and issue templates
+├── core/               # Core automation framework
+│   ├── browser/       # Browser implementation
+│   ├── config.py      # Configuration management
+│   └── orchestrator.py# High-level orchestration
+├── examples/          # Example scripts
+├── screenshots/       # Default screenshot directory
+├── tests/             # Test suite
+├── .env.example      # Environment template
+├── CHANGELOG.md      # Version history
+└── requirements*.txt # Dependencies
 ```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 📬 Support
+
+For support, please open an issue on our [GitHub Issues](https://github.com/consumrbuzzy/chrome-puppet/issues) page.
+
+## 🔗 Related Projects
+
+- [Selenium](https://www.selenium.dev/) - Web browser automation
+- [Playwright](https://playwright.dev/) - Modern browser automation
+- [Puppeteer](https://pptr.dev/) - Node.js browser automation
+
+## 📊 Stats
+
+![GitHub stars](https://img.shields.io/github/stars/consumrbuzzy/chrome-puppet?style=social)
+![PyPI](https://img.shields.io/pypi/v/chrome-puppet)
+![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
+
+---
+
+<div align="center">
+  Made with ❤️ by the Chrome Puppet Team
+</div>
 
 ## Virtual Environment Setup
 

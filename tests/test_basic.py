@@ -60,12 +60,21 @@ class TestChromePuppetBasic(unittest.TestCase):
         """Test screenshot functionality."""
         with ChromePuppet(config=self.config) as browser:
             browser.get("https://www.example.com")
-            screenshot_path = browser.take_screenshot("test_example")
-            # Convert to Path object if it's a string
-            screenshot_path = Path(screenshot_path) if isinstance(screenshot_path, str) else screenshot_path
+            # Generate a unique filename for the screenshot
+            import time
+            timestamp = int(time.time())
+            screenshot_filename = f"test_screenshot_{timestamp}.png"
+            screenshot_path = Path("screenshots") / screenshot_filename
+            
+            # Take the screenshot
+            success = browser.take_screenshot(str(screenshot_path))
+            self.assertTrue(success, "Screenshot should be taken successfully")
+            
+            # Verify the file was created
             self.assertTrue(screenshot_path.exists(), f"Screenshot file should exist at {screenshot_path}")
             self.assertGreater(screenshot_path.stat().st_size, 0, "Screenshot file should not be empty")
             logger.info(f"Screenshot saved to {screenshot_path}")
+            
             # Clean up after test
             if screenshot_path.exists():
                 screenshot_path.unlink()

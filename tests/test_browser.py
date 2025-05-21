@@ -115,6 +115,28 @@ class TestChromeBrowser(BaseTest):
         browser.start()
         browser.get("https://example.org")
         assert "Example" in browser.driver.title
+    
+    def test_custom_user_agent(self, browser):
+        """Test custom user agent setting."""
+        custom_ua = "ChromePuppet/1.0"  # Just check for the custom part
+        full_ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) {custom_ua}"
+        
+        # Create a new browser instance with custom user agent
+        from core.browser.chrome import ChromeConfig
+        config = ChromeConfig(
+            headless=True,
+            user_agent=full_ua
+        )
+        
+        # Import ChromePuppet here to avoid circular imports
+        from core.browser.puppet import ChromePuppet
+        with ChromePuppet(config=config) as custom_browser:
+            custom_browser.get("https://httpbin.org/user-agent")
+            # The page returns the user agent in the response body
+            user_agent = custom_browser.driver.find_element(By.TAG_NAME, "body").text
+            # Check if our custom part is in the user agent
+            assert custom_ua in user_agent
+
 
 class TestChromeConfig:
     """Test cases for ChromeConfig class."""

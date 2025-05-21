@@ -62,13 +62,6 @@ def load_url(url, headless=True, wait_time=5):
             'success': False,
             'error': str(e)
         }
-        if self.driver:
-            try:
-                self.driver.quit()
-                print("WebDriver closed.")
-            except Exception as e:
-                print(f"Error closing WebDriver: {e}")
-        self.driver = None # Ensure driver attribute is reset
 
 def parse_arguments():
     """Parse command line arguments."""

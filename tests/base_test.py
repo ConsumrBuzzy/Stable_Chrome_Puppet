@@ -5,12 +5,17 @@ import logging
 import unittest
 import argparse
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple, Union
 
 # Add parent directory to path to import our package
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
-from chrome_puppet import ChromePuppet, ChromeConfig
+try:
+    from chrome_puppet import ChromePuppet, ChromeConfig
+except ImportError:
+    # For direct execution of tests
+    from browser import ChromePuppet
+    from config import ChromeConfig
 
 class BaseTest(unittest.TestCase):
     """Base test class with common setup and teardown."""

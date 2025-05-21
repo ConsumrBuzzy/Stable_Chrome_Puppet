@@ -1,11 +1,14 @@
 """Test screenshot capture functionality."""
-import unittest
 import os
+import sys
+import unittest
 from pathlib import Path
 
-from selenium.webdriver.common.by import By
+# Add parent directory to path to import our package
+sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
-from .base_test import BaseTest
+from selenium.webdriver.common.by import By
+from tests.base_test import BaseTest
 
 class TestScreenshot(BaseTest):
     """Test screenshot capture functionality."""

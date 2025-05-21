@@ -16,12 +16,12 @@ long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 setup(
     name="chrome-puppet",
     version="0.1.0",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Robert D",
+    author_email="robert.d@consumrbuzz.com",
     description="A robust and extensible Chrome browser automation tool",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/chrome-puppet",
+    url="https://github.com/consumrbuzzy/chrome-puppet",
     packages=find_packages(exclude=["tests", "tests.*"]),
     package_dir={
         "chrome_puppet": "core"

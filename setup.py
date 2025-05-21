@@ -8,11 +8,8 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 def get_version() -> str:
-    """Read version from VERSION file."""
-    version_file = Path(__file__).parent / "VERSION"
-    if version_file.exists():
-        return version_file.read_text(encoding="utf-8").strip()
-    return "0.1.0"
+    """Return the package version."""
+    return "0.1.0"  # Direct version string
 
 def get_requirements(filename: str) -> list:
     """Read requirements from a requirements file."""

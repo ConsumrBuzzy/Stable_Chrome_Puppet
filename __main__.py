@@ -76,74 +76,156 @@ def main():
         return 0 if result.wasSuccessful() else 1
     
     elif args.command == 'browser':
-        # Launch browser
-        from core.browser.chrome import ChromeBrowser
+        # Launch browser using the site handler system
+        from core.sites import get_site_handler, register_site_handler
+        from core.sites.example_site import ExampleSiteHandler
         from core.config import ChromeConfig
         from core.utils import signal_handling
         import time
+        import json
+        from pathlib import Path
         
-        # Get URL from user
-        url = input("Enter URL to load (e.g., https://example.com): ").strip()
-        if not url:
-            print("No URL provided. Using default: https://example.com")
-            url = "https://example.com"
-            
-        # Ensure URL has a scheme
-        if not url.startswith(('http://', 'https://')):
-            url = 'https://' + url
-            
-        print(f"\nLaunching Chrome browser (headed mode) to load: {url}")
+        # Register our example site handler
+        register_site_handler('example', ExampleSiteHandler)
         
-        # Configure browser (force headed mode)
-        config = ChromeConfig(
-            headless=False,  # Force headed mode
-            window_size=(1366, 768),
-            verbose=True
-        )
+        # Get site handler
+        site_name = input("Enter site name (or 'custom' for direct URL): ").strip().lower()
         
-        # Initialize browser with signal handling
-        with signal_handling():
-            browser = ChromeBrowser(config=config)
+        if site_name == 'custom':
+            # Use direct URL mode
+            url = input("Enter URL to load: ").strip()
+            if not url:
+                print("No URL provided. Using default: https://example.com")
+                url = "https://example.com"
+                
+            if not url.startswith(('http://', 'https://')):
+                url = 'https://' + url
+                
+            print(f"\nLaunching Chrome browser to load: {url}")
             
-            # Add browser cleanup to signal handler
-            def cleanup():
-                if hasattr(browser, 'is_running') and browser.is_running():
-                    print("\nCleaning up browser...")
-                    browser.stop()
+            # Configure browser
+            config = ChromeConfig(
+                headless=False,
+                window_size=(1366, 768),
+                verbose=True
+            )
             
-            # Register cleanup with signal handler
-            signal_handling(cleanup)
+            # Use the browser directly
+            with signal_handling():
+                browser = ChromeBrowser(config=config)
+                
+                def cleanup():
+                    if hasattr(browser, 'is_running') and browser.is_running():
+                        print("\nCleaning up browser...")
+                        browser.stop()
+                
+                signal_handling(cleanup)
+                
+                try:
+                    print("Starting browser...")
+                    browser.start()
+                    print(f"Navigating to {url}...")
+                    browser.navigate_to(url)
+                    
+                    print(f"\nPage loaded successfully!")
+                    print(f"Title: {browser.driver.title}")
+                    print(f"URL: {browser.get_current_url()}")
+                    
+                    print("\nBrowser will close automatically in 30 seconds...")
+                    print("Press Ctrl+C to close immediately")
+                    
+                    start_time = time.time()
+                    while time.time() - start_time < 30:
+                        time.sleep(0.5)
+                        
+                except KeyboardInterrupt:
+                    print("\nInterrupted by user.")
+                except Exception as e:
+                    print(f"\nError: {e}")
+                    time.sleep(2)
+                finally:
+                    if hasattr(browser, 'is_running') and browser.is_running():
+                        print("\nShutting down browser...")
+                        browser.stop()
+                        print("Browser closed.")
+        else:
+            # Use site handler mode
+            site_handler_class = get_site_handler(site_name)
+            if not site_handler_class:
+                print(f"\nError: No handler found for site '{site_name}'")
+                print("Available sites:")
+                for name in ['example']:  # Add more as they become available
+                    print(f"  - {name}")
+                return 1
+                
+            print(f"\nLaunching {site_name} handler...")
             
-            try:
-                # Start browser and navigate to URL
-                print("Starting browser...")
-                browser.start()
-                print(f"Navigating to {url}...")
-                browser.navigate_to(url)
+            # Configure browser
+            config = ChromeConfig(
+                headless=False,
+                window_size=(1366, 768),
+                verbose=True
+            )
+            
+            # Create data directory
+            data_dir = Path.cwd() / 'data' / site_name
+            data_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Use the site handler
+            with signal_handling():
+                site = site_handler_class(config=config, data_dir=data_dir)
                 
-                # Display page info
-                print(f"\nPage loaded successfully!")
-                print(f"Title: {browser.driver.title}")
-                print(f"URL: {browser.get_current_url()}")
+                def cleanup():
+                    if hasattr(site, 'browser') and site.browser and site.browser.is_running():
+                        print("\nCleaning up site handler...")
+                        site.stop_browser()
                 
-                # Wait for 30 seconds or until interrupted
-                print("\nBrowser will close automatically in 30 seconds...")
-                print("Press Ctrl+C to close immediately")
+                signal_handling(cleanup)
                 
-                start_time = time.time()
-                while time.time() - start_time < 30:
-                    time.sleep(0.5)  # Shorter sleep for better responsiveness
-                
-            except KeyboardInterrupt:
-                print("\nInterrupted by user.")
-            except Exception as e:
-                print(f"\nError: {e}")
-                time.sleep(2)  # Give user a moment to see the error
-            finally:
-                if hasattr(browser, 'is_running') and browser.is_running():
-                    print("\nShutting down browser...")
-                    browser.stop()
-                    print("Browser closed.")
+                try:
+                    # Example: Login flow
+                    if not site.is_logged_in():
+                        print("You need to log in first.")
+                        username = input("Username: ")
+                        password = input("Password: ")
+                        
+                        print("Logging in...")
+                        if site.login(username, password):
+                            print("Login successful!")
+                            site.save_cookies()  # Save cookies for future sessions
+                        else:
+                            print("Login failed!")
+                            return 1
+                    else:
+                        print("Already logged in!")
+                    
+                    # Example: Do something with the site
+                    print("\nFetching dashboard data...")
+                    try:
+                        dashboard_data = site.get_dashboard_data()
+                        print("\nDashboard data:")
+                        print(json.dumps(dashboard_data, indent=2))
+                    except NotImplementedError:
+                        print("Dashboard data not implemented for this site")
+                    
+                    # Keep the browser open for a while
+                    print("\nBrowser will close automatically in 30 seconds...")
+                    print("Press Ctrl+C to close immediately")
+                    
+                    start_time = time.time()
+                    while time.time() - start_time < 30:
+                        time.sleep(0.5)
+                        
+                except KeyboardInterrupt:
+                    print("\nInterrupted by user.")
+                except Exception as e:
+                    print(f"\nError: {e}")
+                    time.sleep(2)
+                finally:
+                    if hasattr(site, 'browser') and site.browser and site.browser.is_running():
+                        print("\nShutting down site handler...")
+                        site.stop_browser()
+                        print("Site handler closed.")
             
         return 0
     

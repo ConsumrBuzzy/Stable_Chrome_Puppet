@@ -42,6 +42,17 @@ chromedriver.exe
 *.log
 logs/
 
+# Screenshots
+screenshots/*.png
+screenshots/*.jpg
+screenshots/*.jpeg
+
+# Test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -49,4 +60,17 @@ logs/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+
+# Project specific
+*.bak
+*~
+*.tmp
+*.swp
+*~
+
+# Local development
+local_settings.py
+
+# Jupyter Notebook
+.ipynb_checkpoints
 Thumbs.db

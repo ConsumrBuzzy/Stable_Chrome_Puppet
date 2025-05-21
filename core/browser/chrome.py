@@ -472,29 +472,6 @@ class ChromeBrowser(BaseBrowser):
         """Detect Chrome installation bitness.
         
         Returns:
-            str: '32' or '64' indicating Chrome bitness
-        """
-        try:
-            if platform.system() == "Windows":
-                import winreg
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
-                                  r"Software\Google\Chrome\BLBeacon") as key:
-                    install_path = winreg.QueryValueEx(key, 'Path')[0]
-                    chrome_exe = os.path.join(install_path, 'chrome.exe')
-                    with open(chrome_exe, 'rb') as f:
-                        f.seek(0x3C)  # PE header offset
-                        pe_offset = struct.unpack('<I', f.read(4))[0]
-                        f.seek(pe_offset + 4)  # PE signature + machine type
-                        machine_type = struct.unpack('<H', f.read(2))[0]
-                        return '64' if machine_type == 0x8664 else '32'
-            else:
-                # For non-Windows, assume 64-bit
-                return '64'
-        except Exception as e:
-            self._logger.warning(f"Could not detect Chrome bitness: {e}")
-            return '64'  # Default to 64-bit
-
-    def _get_python_bitness(self) -> str:
         """Get Python interpreter bitness.
     
         Returns:

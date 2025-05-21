@@ -55,6 +55,10 @@ class ChromePuppet:
         self._service: Optional[ChromeService] = None
         self._logger = self._setup_logging()
         self._initialize_driver()
+        
+        # Ensure screenshots directory exists
+        screenshots_dir = Path("screenshots")
+        ensure_dir(screenshots_dir)
     
     def _setup_logging(self) -> logging.Logger:
         """Set up logging configuration."""

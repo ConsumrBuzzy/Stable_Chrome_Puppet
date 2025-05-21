@@ -10,9 +10,9 @@ from typing import Dict, Any, Optional, Tuple, Union
 # Add parent directory to path to import our package
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
-# Import ChromePuppet and ChromeConfig from core
-from core.browser.puppet import ChromePuppet
-from core.config import ChromeConfig
+# Import ChromePuppet and ChromeConfig using relative imports
+from ..core.browser.puppet import ChromePuppet
+from ..core.config import ChromeConfig
 
 class BaseTest(unittest.TestCase):
     """Base test class with common setup and teardown."""

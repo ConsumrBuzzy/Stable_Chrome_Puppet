@@ -53,6 +53,12 @@ def parse_args():
 
 def main():
     """Main entry point for the Chrome Puppet CLI."""
+    import os
+    
+    # Suppress TensorFlow Lite XNNPACK delegate warnings
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # 0=INFO, 1=WARNING, 2=ERROR, 3=FATAL
+    os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Disable oneDNN optimizations
+    
     args = parse_args()
     
     if args.version:

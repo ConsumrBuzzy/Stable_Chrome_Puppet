@@ -143,8 +143,8 @@ class ChromeBrowser(BaseBrowser):
         if platform.system() != "Windows":
             target_path.chmod(0o755)
             
-        self._logger.info(f"Successfully downloaded ChromeDriver to: {target_path}")
-        return True
+            self._logger.info(f"Successfully downloaded ChromeDriver to: {target_path}")
+            return True
         
         except Exception as e:
             self._logger.error(f"Failed to download ChromeDriver: {e}")
@@ -152,7 +152,7 @@ class ChromeBrowser(BaseBrowser):
         finally:
             # Clean up temp directory
             if 'temp_dir' in locals() and temp_dir.exists():
-            shutil.rmtree(temp_dir, ignore_errors=True)
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
 # Fix the _setup_chrome_options method
     def _setup_chrome_options(self) -> ChromeOptions:

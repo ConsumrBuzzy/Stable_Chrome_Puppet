@@ -28,11 +28,8 @@ from selenium.common.exceptions import (
     NoSuchElementException
 )
 
-# Third-party imports
-try:
-    from webdriver_manager.chrome import ChromeDriverManager
-except ImportError:
-    ChromeDriverManager = None
+# Local imports
+from utils.driver_manager import ChromeDriverManager as LocalChromeDriverManager
 
 # Local imports
 from .base import BaseBrowser, retry_on_failure
@@ -82,46 +79,16 @@ class ChromeBrowser(BaseBrowser):
         Raises:
             BrowserError: If ChromeDriver cannot be found or installed
         """
-        # Try webdriver-manager first to get the correct version
-        if ChromeDriverManager is not None:
-            try:
-                # Specify the exact ChromeDriver version that matches Chrome 136.0.7103.114
-                driver_path = ChromeDriverManager(version="136.0.7103.114").install()
-                self._logger.info(f"Using ChromeDriver from webdriver-manager: {driver_path}")
-                return driver_path
-            except Exception as e:
-                self._logger.warning(f"Failed to install ChromeDriver using webdriver-manager: {e}")
-        
-        # Fall back to common paths if webdriver-manager fails
-        common_paths = [
-            "chromedriver.exe",
-            "chromedriver",
-            str(Path.home() / ".wdm" / "drivers" / "chromedriver" / "win64" / "136.0.7103.114" / "chromedriver.exe"),
-            "C:\\chromedriver\\chromedriver.exe",
-            str(Path.home() / "chromedriver" / "chromedriver.exe")
-        ]
-        
-        # Check common paths
-        for path in common_paths:
-            if os.path.exists(path):
-                self._logger.info(f"Found ChromeDriver at: {path}")
-                return path
-        if ChromeDriverManager is not None:
-            try:
-                driver_path = ChromeDriverManager().install()
-                self._logger.info(f"Using ChromeDriver from webdriver-manager: {driver_path}")
-                return driver_path
-            except Exception as e:
-                self._logger.warning(f"Failed to install ChromeDriver: {e}")
-        
-        # If we get here, we couldn't find ChromeDriver
-        error_msg = (
-            "Could not find ChromeDriver. Please ensure it's installed and in your PATH, "
-            "or install webdriver-manager with: pip install webdriver-manager"
-        )
-        self._logger.error(error_msg)
-        raise BrowserError(error_msg)
-        
+        try:
+            # Use our local ChromeDriverManager to handle driver installation
+            driver_manager = LocalChromeDriverManager(logger=self._logger)
+            driver_path = driver_manager.setup_chromedriver()
+            self._logger.info(f"Using ChromeDriver from: {driver_path}")
+            return str(driver_path)
+        except Exception as e:
+            error_msg = f"Failed to set up ChromeDriver: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
         # Fallback to common locations
         chromedriver_name = 'chromedriver.exe' if os.name == 'nt' else 'chromedriver'
         is_64bit = sys.maxsize > 2**32

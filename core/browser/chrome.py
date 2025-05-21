@@ -471,97 +471,101 @@ class ChromeBrowser(BaseBrowser):
 
 
     def _create_driver(self) -> webdriver.Chrome:
-    """Create and configure a Chrome WebDriver instance with automatic driver management.
-    
-    This method implements a multi-layered approach to WebDriver initialization:
-    1. First tries to use the configured chromedriver path
-    2. Falls back to webdriver-manager if available
-    3. Attempts to automatically download a matching ChromeDriver
+        """Create and configure a Chrome WebDriver instance with automatic driver management.
         
-    Returns:
-        webdriver.Chrome: Configured WebDriver instance
+        This method implements a multi-layered approach to WebDriver initialization:
+        1. First tries to use the configured chromedriver path
+        2. Falls back to webdriver-manager if available
+        3. Attempts to automatically download a matching ChromeDriver
             
-    Raises:
-        BrowserError: If all driver initialization methods fail
-    """
-    options = self._setup_chrome_options()
-    
-    # 1. Try using configured chromedriver path first
-    if self.config.chromedriver_path and self.config.chromedriver_path.exists():
-        try:
-            self._logger.info(f"Using configured ChromeDriver: {self.config.chromedriver_path}")
-            service = Service(executable_path=str(self.config.chromedriver_path))
-            return webdriver.Chrome(service=service, options=options)
-        except Exception as e:
-            self._logger.warning(f"Configured ChromeDriver failed: {e}")
+        Returns:
+            webdriver.Chrome: Configured WebDriver instance
+                
+        Raises:
+            BrowserError: If all driver initialization methods fail
+        """
+        options = self._setup_chrome_options()
         
-    # 2. Detect Chrome version and bitness
-    chrome_version = self._get_chrome_version()
-    chrome_bitness = self._get_chrome_bitness()
-    python_bitness = self._get_python_bitness()
-    
-    self._logger.info(f"Detected - Chrome: {chrome_version} ({chrome_bitness}-bit), "
-                     f"Python: {python_bitness}-bit")
-    
-    # 3. If bitness matches, try to download matching ChromeDriver
-    if chrome_version and chrome_bitness == python_bitness:
-        driver_path = Path.home() / ".chromedriver" / f"chromedriver_{chrome_version}_{chrome_bitness}"
-        driver_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        if not driver_path.exists() and self._download_chromedriver(chrome_version, python_bitness, driver_path):
+        # 1. Try using configured chromedriver path first
+        if hasattr(self.config, 'chromedriver_path') and self.config.chromedriver_path and Path(self.config.chromedriver_path).exists():
             try:
-                service = Service(executable_path=str(driver_path))
+                self._logger.info(f"Using configured ChromeDriver: {self.config.chromedriver_path}")
+                service = Service(executable_path=str(self.config.chromedriver_path))
                 return webdriver.Chrome(service=service, options=options)
             except Exception as e:
-                self._logger.warning(f"Downloaded ChromeDriver failed: {e}")
-        
-    # 4. Fall back to webdriver-manager
-    try:
-        self._logger.info("Falling back to webdriver-manager for ChromeDriver")
-        service = Service(ChromeDriverManager().install())
-        return webdriver.Chrome(service=service, options=options)
-    except Exception as e:
-        self._logger.warning(f"webdriver-manager fallback failed: {e}")
+                self._logger.warning(f"Configured ChromeDriver failed: {e}")
             
-    # 5. Final fallback - try system PATH
-    try:
-        self._logger.info("Attempting to use ChromeDriver from system PATH")
-        return webdriver.Chrome(options=options)
-    except Exception as e:
-        error_msg = (f"All ChromeDriver initialization methods failed. "
-                   f"Please ensure Chrome and ChromeDriver are properly installed.\n"
-                   f"Error: {e}")
-        self._logger.error(error_msg)
-        raise BrowserError(error_msg) from e
+        # 2. Detect Chrome version and bitness
+        chrome_version = self._get_chrome_version()
+        chrome_bitness = self._get_chrome_bitness()
+        python_bitness = self._get_python_bitness()
+        
+        self._logger.info(f"Detected - Chrome: {chrome_version} ({chrome_bitness}-bit), "
+                        f"Python: {python_bitness}-bit")
+        
+        # 3. If bitness matches, try to download matching ChromeDriver
+        if chrome_version and chrome_bitness == python_bitness:
+            driver_path = Path.home() / ".chromedriver" / f"chromedriver_{chrome_version}_{chrome_bitness}"
+            driver_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            if not driver_path.exists() and self._download_chromedriver(chrome_version, python_bitness, driver_path):
+                try:
+                    service = Service(executable_path=str(driver_path))
+                    return webdriver.Chrome(service=service, options=options)
+                except Exception as e:
+                    self._logger.warning(f"Downloaded ChromeDriver failed: {e}")
+            
+        # 4. Fall back to webdriver-manager
+        try:
+            self._logger.info("Falling back to webdriver-manager for ChromeDriver")
+            service = Service(ChromeDriverManager().install())
+            return webdriver.Chrome(service=service, options=options)
+        except Exception as e:
+            self._logger.warning(f"webdriver-manager fallback failed: {e}")
+                
+        # 5. Final fallback - try system PATH
+        try:
+            self._logger.info("Attempting to use ChromeDriver from system PATH")
+            return webdriver.Chrome(options=options)
+        except Exception as e:
+            error_msg = (
+                "All ChromeDriver initialization methods failed. "
+                "Please ensure Chrome and ChromeDriver are properly installed.\n"
+                f"Error: {e}"
+            )
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
 
     def start(self) -> None:
-    """
-    Start the Chrome browser with the configured settings.
-    
-    Raises:
-        BrowserError: If the browser fails to start
-    """
-    if self._is_running:
-        self._logger.warning("Browser is already running")
-        return
-            
-    try:
-        # Create and configure the WebDriver
-        self._logger.info("Initializing Chrome browser...")
-        self._driver = self._create_driver()
-        self._is_running = True
-            
-        # Set default window size if not in headless mode
-        if not self.config.headless and self.config.window_size:
-            self._driver.set_window_size(
-                self.config.window_size[0],
-                self.config.window_size[1]
-            )
+        """
+        Start the Chrome browser with the configured settings.
+        
+        Raises:
+            BrowserError: If the browser fails to start
+        """
+        if self._is_running:
+            self._logger.warning("Browser is already running")
+            return
                 
-        self._logger.info("Chrome browser started successfully")
+            # Create and configure the WebDriver
+            self._logger.info("Initializing Chrome browser...")
+            self.driver = self._create_driver()
+            self._is_running = True
+                
+            # Set default window size if not in headless mode
+            if hasattr(self.config, 'headless') and not self.config.headless and \
+               hasattr(self.config, 'window_size') and self.config.window_size:
+                self.driver.set_window_size(
+                    self.config.window_size[0],
+                    self.config.window_size[1]
+                )
+                    
+            self._logger.info("Chrome browser started successfully")
             
-    except Exception as e:
-        error_msg = f"Failed to start Chrome browser: {e}"
+        except Exception as e:
+            error_msg = f"Failed to start Chrome browser: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
 
     def stop(self) -> None:
         """Stop the browser and clean up resources."""
@@ -689,11 +693,3 @@ class ChromeBrowser(BaseBrowser):
         """Context manager exit."""
         self.stop()
         return False  # Don't suppress exceptions
-    """Stop the Chrome browser and clean up resources."""
-    if not self._is_running or not self.driver:
-        self._logger.warning("Browser is not running")
-        return
-        
-    self._logger.info("Stopping Chrome browser...")
-    self._cleanup_resources()
-    self._logger.info("Browser stopped successfully")

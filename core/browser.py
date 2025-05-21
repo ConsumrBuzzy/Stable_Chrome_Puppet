@@ -17,8 +17,13 @@ from selenium.common.exceptions import (
     TimeoutException,
     NoSuchElementException,
     ElementNotInteractableException,
-    ElementClickInterceptedException
+    ElementClickInterceptedException,
+    StaleElementReferenceException,
+    ElementNotVisibleException
 )
+from functools import wraps
+import random
+import time
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.os_manager import ChromeType
 import re
@@ -84,18 +89,62 @@ class ChromePuppet:
         
         return logger
         
-    def _get_screenshot_path(self, prefix: str = "screenshot") -> Path:
-        """Generate a unique screenshot file path."""
-        screenshots_dir = Path("screenshots")
-        ensure_dir(screenshots_dir)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return screenshots_dir / f"{prefix}_{timestamp}.png"
+    def _retry_on_failure(self, max_retries=3, delay=1, backoff=2, exceptions=(Exception,)):
+        """Decorator for retrying a function upon exceptions.
+        
+        Args:
+            max_retries: Maximum number of retry attempts
+            delay: Initial delay between retries in seconds
+            backoff: Multiplier applied to delay between retries
+            exceptions: Exceptions to catch and retry on
+        """
+        def decorator(func):
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                retries = 0
+                current_delay = delay
+                
+                while retries < max_retries:
+                    try:
+                        return func(*args, **kwargs)
+                    except exceptions as e:
+                        retries += 1
+                        if retries == max_retries:
+                            self._logger.error(f"Max retries ({max_retries}) reached for {func.__name__}")
+                            raise
+                        
+                        # Add jitter to avoid thundering herd problem
+                        sleep_time = current_delay * (1 + random.random() * 0.1)
+                        self._logger.warning(
+                            f"Retry {retries}/{max_retries} for {func.__name__} after error: {str(e)}. "
+                            f"Retrying in {sleep_time:.2f}s..."
+                        )
+                        time.sleep(sleep_time)
+                        current_delay *= backoff
+            return wrapper
+        return decorator
 
-    def take_screenshot(self, prefix: str = "screenshot") -> Optional[Path]:
-        """Take a screenshot and save it to the screenshots directory.
+    def _get_screenshot_path(self, prefix: str = "screenshot") -> Path:
+        """Generate a unique screenshot file path.
         
         Args:
             prefix: Prefix for the screenshot filename
+            
+        Returns:
+            Path object for the screenshot file
+        """
+        screenshots_dir = Path("screenshots")
+        ensure_dir(screenshots_dir)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        return screenshots_dir / f"{prefix}_{timestamp}.png"
+
+    @_retry_on_failure(max_retries=3, delay=1, exceptions=(WebDriverException, IOError))
+    def take_screenshot(self, prefix: str = "screenshot", element: Optional[WebElement] = None) -> Optional[Path]:
+        """Take a screenshot of the entire page or a specific element and save it.
+        
+        Args:
+            prefix: Prefix for the screenshot filename
+            element: Optional WebElement to capture. If None, captures entire page
             
         Returns:
             Path to the saved screenshot or None if failed
@@ -106,12 +155,19 @@ class ChromePuppet:
             
         try:
             screenshot_path = self._get_screenshot_path(prefix)
-            self.driver.save_screenshot(str(screenshot_path))
+            
+            if element:
+                # Capture specific element
+                element.screenshot(str(screenshot_path))
+            else:
+                # Capture full page
+                self.driver.save_screenshot(str(screenshot_path))
+                
             self._logger.info(f"Screenshot saved to {screenshot_path}")
             return screenshot_path
         except Exception as e:
             self._logger.error(f"Failed to take screenshot: {e}")
-            return None
+            raise
     
     def _get_chrome_version(self) -> str:
         """Get the installed Chrome version."""
@@ -136,6 +192,7 @@ class ChromePuppet:
             self._logger.warning(f"Could not detect Chrome version: {e}")
             return '114.0.0.0'  # Fallback to a common version
 
+    @_retry_on_failure(max_retries=3, delay=2, backoff=2, exceptions=(WebDriverException,))
     def _initialize_driver(self):
         """Initialize the Chrome WebDriver with the specified configuration."""
         try:
@@ -153,49 +210,23 @@ class ChromePuppet:
             for arg in self.config.chrome_arguments:
                 chrome_options.add_argument(arg)
             
-            # Configure ChromeDriver manager
-            self._logger.info("Setting up ChromeDriver...")
-            
-            # Get the appropriate Chrome type
-            chrome_type = ChromeType.CHROMIUM if self.config.chromium else ChromeType.GOOGLE
-            
-            # Configure Chrome options first
-            options = ChromeOptions()
-            options.add_argument("--no-sandbox")
-            options.add_argument("--disable-dev-shm-usage")
-            options.add_argument("--disable-gpu")
-            options.add_argument("--remote-debugging-port=9222")
+            # Configure Chrome options
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--remote-debugging-port=9222")
             
             # Set up Chrome service with specific driver executable path
-            try:
-                # Get the path to the ChromeDriver executable
-                driver_path = ChromeDriverManager().install()
-                self._logger.info(f"Using ChromeDriver at: {driver_path}")
-                
-                # Create Chrome service with the driver path
-                self._service = ChromeService(executable_path=driver_path)
-                
-                # Set the driver path in Chrome options
-                options.binary_location = driver_path
-                
-            except Exception as e:
-                self._logger.error(f"Failed to initialize ChromeDriver: {e}")
-                raise
+            driver_path = ChromeDriverManager().install()
+            self._logger.info(f"Using ChromeDriver at: {driver_path}")
             
-            # Initialize WebDriver with retry logic
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    self.driver = webdriver.Chrome(
-                        service=self._service,
-                        options=chrome_options
-                    )
-                    break
-                except Exception as e:
-                    if attempt == max_retries - 1:
-                        raise
-                    self._logger.warning(f"Attempt {attempt + 1} failed: {str(e)}. Retrying...")
-                    time.sleep(2)  # Wait before retry
+            # Create Chrome service with the driver path
+            self._service = ChromeService(executable_path=driver_path)
+            
+            # Initialize WebDriver with retry logic handled by the decorator
+            self.driver = webdriver.Chrome(
+                service=self._service,
+                options=chrome_options
+            )
             
             # Set window size if specified
             if self.config.window_size:
@@ -206,7 +237,7 @@ class ChromePuppet:
             self._logger.info("Chrome WebDriver initialized successfully")
             
         except Exception as e:
-            self._logger.error(f"Failed to initialize Chrome WebDriver: {str(e)}")
+            self._logger.error(f"Failed to initialize Chrome WebDriver: {e}")
             raise
     
     def navigate_to(self, url: str, wait_time: Optional[int] = None) -> bool:

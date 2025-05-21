@@ -405,7 +405,7 @@ with ChromePuppet() as browser:
 ```
 stable_chrome_puppet/
 ├── __init__.py           # Package initialization
-├── browser.py            # Main browser automation class
+├── chrome.py            # Main Chrome browser implementation
 ├── config.py             # Configuration classes
 ├── utils.py              # Utility functions
 ├── example.py            # Example usage

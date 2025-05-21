@@ -14,8 +14,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.absolute()))
 
 # Import after path setup
-from chrome_puppet import ChromePuppet
-from chrome_puppet.core.config import ChromeConfig
+from core.orchestrator import ChromePuppetOrchestrator, create_orchestrator
+from core.config import ChromeConfig
 
 # Configure logging
 logging.basicConfig(
@@ -46,22 +46,34 @@ def load_url(url, headless=True, wait_time=5):
         implicit_wait=wait_time
     )
     
+    orchestrator = None
     try:
-        with ChromePuppet(config=config) as browser:
-            browser.get(url)
+        orchestrator = create_orchestrator(config=config)
+        orchestrator.start_browser()
+        if orchestrator.browser:
+            orchestrator.browser.get(url)
             
-            return {
+            result = {
                 'success': True,
-                'url': browser.driver.current_url,
-                'title': browser.driver.title,
-                'page_source': browser.driver.page_source[:1000] + '...'  # First 1000 chars
+                'url': url,
+                'title': orchestrator.browser.driver.title,
+                'current_url': orchestrator.browser.driver.current_url,
+                'page_source': orchestrator.browser.driver.page_source[:1000] + '...'  # First 1000 chars
             }
+            return result
     except Exception as e:
-        logger.error(f"Error loading URL {url}: {str(e)}")
+        logger.error(f"Error loading URL {url}: {e}")
         return {
             'success': False,
+            'url': url,
             'error': str(e)
         }
+    finally:
+        if orchestrator:
+            try:
+                orchestrator.stop_browser()
+            except Exception as e:
+                logger.error(f"Error stopping browser: {e}")
 
 def parse_arguments():
     """Parse command line arguments."""

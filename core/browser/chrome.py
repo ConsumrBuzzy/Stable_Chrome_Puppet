@@ -1,10 +1,17 @@
-"""Chrome browser implementation."""
+"""
+Chrome browser implementation for Chrome Puppet.
+
+This module provides a robust implementation of the BaseBrowser interface
+for Chrome, with support for both headed and headless modes, automatic
+driver management, and comprehensive error handling.
+"""
 import os
 import platform
 import subprocess
 import sys
+import time
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Union, Tuple, Callable
+from typing import Optional, Dict, Any, List, Union, Tuple, Callable, TypeVar
 
 # Selenium imports
 from selenium import webdriver
@@ -15,30 +22,55 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import (
+    WebDriverException,
+    TimeoutException,
+    NoSuchElementException
+)
 
 # Third-party imports
-from webdriver_manager.chrome import ChromeDriverManager
+try:
+    from webdriver_manager.chrome import ChromeDriverManager
+except ImportError:
+    ChromeDriverManager = None
 
 # Local imports
 from .base import BaseBrowser, retry_on_failure
-from .exceptions import BrowserError, NavigationError, ScreenshotError
+from .exceptions import (
+    BrowserError,
+    BrowserNotInitializedError,
+    NavigationError,
+    ElementNotFoundError,
+    ScreenshotError
+)
 from ..config import ChromeConfig
 
+# Type variable for generic web elements
+WebElementT = TypeVar('WebElementT', bound=WebElement)
+
 class ChromeBrowser(BaseBrowser):
-    """Chrome browser implementation using Selenium WebDriver."""
+    """
+    Chrome browser implementation using Selenium WebDriver.
+    
+    This class provides a high-level interface for interacting with Chrome,
+    including navigation, element interaction, and browser management.
+    """
     
     def __init__(self, config: ChromeConfig, logger=None):
-        """Initialize the Chrome browser.
+        """Initialize the Chrome browser with the given configuration.
         
         Args:
-            config: Chrome configuration object
-            logger: Optional logger instance
+            config: Chrome configuration object containing browser settings
+            logger: Optional logger instance for logging browser operations
+            
+        Raises:
+            BrowserError: If there's an issue initializing the browser
         """
         super().__init__(config, logger)
         self.config = config
         self.driver: Optional[WebDriver] = None
         self._service = None
+        self._is_running = False
     
     def _get_chrome_driver_path(self) -> str:
         """Get the path to the ChromeDriver executable."""

@@ -1,4 +1,4 @@
-""
+"""
 Site-specific handlers for different websites.
 
 This package contains implementations of BaseSiteHandler for various websites.
@@ -44,5 +44,5 @@ __all__ = [
     'ExampleSiteHandler',
     'get_site_handler',
     'register_site_handler',
-    'SITE_HANDLERS'
+    'SITE_HANDLERS',
 ]

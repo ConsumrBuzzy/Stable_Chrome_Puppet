@@ -202,11 +202,7 @@ For support, please open an issue on our [GitHub Issues](https://github.com/cons
 
 ## 📊 Stats
 
-![GitHub stars](https://img.shields.io/github/stars/consumrbuzzy/chrome-puppet?style=social)
-![PyPI](https://img.shields.io/pypi/v/chrome-puppet)
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
-![Tests](https://github.com/consumrbuzzy/chrome-puppet/actions/workflows/tests.yml/badge.svg)
-[![codecov](https://codecov.io/gh/consumrbuzzy/chrome-puppet/graph/badge.svg?token=YOUR-TOKEN)](https://codecov.io/gh/consumrbuzzy/chrome-puppet)
 
 ---
 

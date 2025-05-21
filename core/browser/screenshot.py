@@ -3,7 +3,7 @@ import os
 import base64
 import logging
 from pathlib import Path
-from typing import Optional, Union, Tuple, BinaryIO, TYPE_CHECKING
+from typing import Any, Optional, Union, Tuple, BinaryIO, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from selenium.webdriver.remote.webdriver import WebDriver

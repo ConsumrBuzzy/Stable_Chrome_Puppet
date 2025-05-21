@@ -159,11 +159,13 @@ class ChromePuppet:
             # Get the appropriate Chrome type
             chrome_type = ChromeType.CHROMIUM if self.config.chromium else ChromeType.GOOGLE
             
-            # Initialize ChromeDriver manager
-            driver_manager = ChromeDriverManager(chrome_type=chrome_type).install()
-            
-            # Set up Chrome service
-            self._service = ChromeService(driver_manager)
+            # Set up Chrome service with specific driver version
+            self._service = ChromeService(
+                ChromeDriverManager(
+                    chrome_type=chrome_type,
+                    version='114.0.5735.90'  # Stable version known to work well
+                ).install()
+            )
             
             # Initialize WebDriver with retry logic
             max_retries = 3

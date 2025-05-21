@@ -28,6 +28,9 @@ class ChromeConfig:
     chrome_type: str = "chrome"
     """Type of Chrome browser to use (chrome, chrome-beta, chrome-dev, etc.)."""
     
+    chrome_path: Optional[str] = None
+    """Path to the Chrome/Chromium executable. If None, uses the default path."""
+    
     implicit_wait: int = 10
     """Implicit wait time in seconds for element location."""
     

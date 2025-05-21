@@ -28,6 +28,9 @@ import time
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.os_manager import ChromeType
 import re
+import shutil
+import sys
+import subprocess
 from packaging import version
 from bs4 import BeautifulSoup
 
@@ -45,16 +48,50 @@ logger = logging.getLogger(__name__)
 class ChromePuppet:
     """A robust and extensible Chrome browser automation class."""
     
+    def is_chrome_installed(self) -> bool:
+        """Check if Chrome is installed on the system."""
+        try:
+            if os.name == 'nt':  # Windows
+                import winreg
+                try:
+                    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, 
+                                     r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe'):
+                        return True
+                except WindowsError:
+                    return False
+            else:  # macOS and Linux
+                if shutil.which('google-chrome') or shutil.which('chromium') or shutil.which('chrome'):
+                    return True
+                if os.path.exists('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'):
+                    return True
+                return False
+        except Exception as e:
+            self._logger.warning(f"Error checking Chrome installation: {e}")
+            return False
+
     def __init__(self, config: Optional[ChromeConfig] = None):
         """Initialize the ChromePuppet with the given configuration.
         
         Args:
             config: ChromeConfig instance with browser settings. If None, uses defaults.
+            
+        Raises:
+            RuntimeError: If Chrome is not installed or cannot be found
         """
         self.config = config or DEFAULT_CONFIG
         self.driver: Optional[WebDriver] = None
         self._service: Optional[ChromeService] = None
         self._logger = self._setup_logging()
+        
+        # Check if Chrome is installed
+        if not self.is_chrome_installed():
+            error_msg = (
+                "Google Chrome is not installed or not in PATH. "
+                "Please install Chrome from https://www.google.com/chrome/"
+            )
+            self._logger.error(error_msg)
+            raise RuntimeError(error_msg)
+            
         self._initialize_driver()
         
         # Ensure screenshots directory exists
@@ -200,6 +237,29 @@ class ChromePuppet:
             self._logger.warning(f"Could not detect Chrome version: {e}")
             return '114.0.0.0'  # Fallback to a common version
 
+    def _get_chrome_version(self) -> str:
+        """Get the installed Chrome version."""
+        try:
+            if os.name == 'nt':  # Windows
+                import winreg
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+                                  r'Software\Google\Chrome\BLBeacon') as key:
+                    version = winreg.QueryValueEx(key, 'version')[0]
+            else:  # macOS and Linux
+                import subprocess
+                if os.path.exists('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'):
+                    # macOS
+                    cmd = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --version'
+                else:
+                    # Linux
+                    cmd = 'google-chrome --version' if shutil.which('google-chrome') else 'chromium --version'
+                version = subprocess.check_output(cmd, shell=True).decode('utf-8').strip()
+                version = re.search(r'\d+\.\d+\.\d+', version).group()
+            return version
+        except Exception as e:
+            self._logger.warning(f"Could not detect Chrome version: {e}")
+            return '114.0.0.0'  # Fallback to a common version
+
     @_retry_on_failure(max_retries=3, delay=2, backoff=2, exceptions=(WebDriverException,))
     def _initialize_driver(self):
         """Initialize the Chrome WebDriver with the specified configuration."""
@@ -223,29 +283,47 @@ class ChromePuppet:
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_argument("--remote-debugging-port=9222")
             
-            # Set up Chrome service with specific driver executable path
-            driver_path = ChromeDriverManager().install()
-            self._logger.info(f"Using ChromeDriver at: {driver_path}")
-            
-            # Create Chrome service with the driver path
-            self._service = ChromeService(executable_path=driver_path)
-            
-            # Initialize WebDriver with retry logic handled by the decorator
-            self.driver = webdriver.Chrome(
-                service=self._service,
-                options=chrome_options
-            )
-            
-            # Set window size if specified
-            if self.config.window_size:
-                self.driver.set_window_size(*self.config.window_size)
-            else:
-                self.driver.maximize_window()
-            
-            self._logger.info("Chrome WebDriver initialized successfully")
+            try:
+                # Try to get Chrome version and set up WebDriverManager
+                chrome_version = self._get_chrome_version()
+                self._logger.info(f"Detected Chrome version: {chrome_version}")
+                
+                # Initialize WebDriverManager with the detected Chrome version
+                driver_manager = ChromeDriverManager(version=chrome_version)
+                driver_path = driver_manager.install()
+                self._logger.info(f"Using ChromeDriver at: {driver_path}")
+                
+                # Create Chrome service with the driver path
+                self._service = ChromeService(executable_path=driver_path)
+                
+                # Initialize WebDriver with retry logic handled by the decorator
+                self.driver = webdriver.Chrome(
+                    service=self._service,
+                    options=chrome_options
+                )
+                
+                # Set window size if specified
+                if self.config.window_size:
+                    self.driver.set_window_size(*self.config.window_size)
+                else:
+                    self.driver.maximize_window()
+                
+                self._logger.info("Chrome WebDriver initialized successfully")
+                
+            except Exception as e:
+                self._logger.error(f"Error initializing WebDriver: {e}")
+                # Fallback to basic initialization without version detection
+                self._logger.info("Attempting fallback WebDriver initialization...")
+                self.driver = webdriver.Chrome(options=chrome_options)
+                self._logger.info("Fallback WebDriver initialization successful")
             
         except Exception as e:
             self._logger.error(f"Failed to initialize Chrome WebDriver: {e}")
+            if hasattr(self, '_service') and self._service:
+                try:
+                    self._service.stop()
+                except Exception as stop_error:
+                    self._logger.error(f"Error stopping Chrome service: {stop_error}")
             raise
     
     def navigate_to(self, url: str, wait_time: Optional[int] = None) -> bool:

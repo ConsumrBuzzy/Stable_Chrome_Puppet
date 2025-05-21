@@ -89,28 +89,6 @@ class ChromeBrowser(BaseBrowser):
             error_msg = f"Failed to set up ChromeDriver: {e}"
             self._logger.error(error_msg)
             raise BrowserError(error_msg) from e
-        # Fallback to common locations
-        chromedriver_name = 'chromedriver.exe' if os.name == 'nt' else 'chromedriver'
-        is_64bit = sys.maxsize > 2**32
-        
-        # Check common locations
-        common_paths = [
-            os.path.join(os.path.dirname(__file__), 'bin', chromedriver_name),
-            os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 
-                         'win64' if is_64bit else 'win32', chromedriver_name),
-            os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'mac64', chromedriver_name),
-            os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'linux64', chromedriver_name),
-            'chromedriver',
-            '/usr/local/bin/chromedriver',
-            '/usr/bin/chromedriver',
-            os.path.join(os.environ.get('PROGRAMFILES', ''), 'ChromeDriver', chromedriver_name),
-            os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), 'ChromeDriver', chromedriver_name)
-        ]
-        
-        for path in common_paths:
-            if os.path.exists(path):
-                self._logger.info(f"Found ChromeDriver at: {path}")
-                return path
         
     @retry_on_failure(max_retries=3, delay=2, backoff=2, exceptions=(WebDriverException,))
     def start(self) -> None:

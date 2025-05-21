@@ -55,9 +55,9 @@
    - Be mindful of resource usage
 
 11. **Security**
-    - Never log sensitive information
-    - Validate all inputs
-    - Follow security best practices for web automation
+   - Never log sensitive information
+   - Validate all inputs
+   - Follow security best practices for web automation
 
 ## Development Workflow
 
@@ -84,24 +84,3 @@
    - Include details in the body when necessary
 
 ## Project Structure
-
-```plaintext
-chrome-puppet/
-├── chrome_puppet/          # Main package
-│   ├── __init__.py         # Package initialization
-│   ├── browser.py          # Core browser automation
-│   ├── config.py           # Configuration management
-│   ├── orchestrator.py     # Workflow orchestration
-│   └── utils/              # Utility functions
-│       ├── __init__.py
-│       └── utils.py
-├── tests/                  # Test cases
-├── examples/               # Example scripts
-├── logs/                   # Log files
-├── screenshots/            # Screenshots
-├── .gitignore
-├── README.md
-├── requirements.txt
-├── requirements-dev.txt
-└── setup.py
-```

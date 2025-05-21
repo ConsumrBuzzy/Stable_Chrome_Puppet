@@ -3,6 +3,22 @@ Browser automation module for Chrome Puppet.
 
 This module provides a high-level interface for browser automation using Selenium WebDriver.
 It includes Chrome-specific implementations, element handling, navigation, and screenshot utilities.
+
+Key Components:
+    - ChromePuppet: High-level browser automation interface
+    - ChromeBrowser: Core browser control implementation
+    - ChromeConfig: Configuration container for browser settings
+    - ElementHelper: Utilities for element interaction
+    - NavigationMixin: Common navigation functionality
+    - ScreenshotHelper: Screenshot capture utilities
+
+Example:
+    >>> from core import ChromePuppet, ChromeConfig
+    >>> config = ChromeConfig(headless=True)
+    >>> with ChromePuppet(config) as browser:
+    ...     browser.navigate_to("https://example.com")
+    ...     title = browser.execute_script("return document.title")
+    ...     browser.take_screenshot("example.png")
 """
 
 # Import key components to make them available at the package level

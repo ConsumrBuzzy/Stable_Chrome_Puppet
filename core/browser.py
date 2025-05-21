@@ -21,6 +21,8 @@ from selenium.common.exceptions import (
 )
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.os_manager import ChromeType
+import re
+from packaging import version
 from bs4 import BeautifulSoup
 
 from core.config import ChromeConfig, DEFAULT_CONFIG
@@ -111,48 +113,84 @@ class ChromePuppet:
             self._logger.error(f"Failed to take screenshot: {e}")
             return None
     
-    def _initialize_driver(self) -> None:
-        """Initialize the Chrome WebDriver with the configured options."""
+    def _get_chrome_version(self) -> str:
+        """Get the installed Chrome version."""
+        try:
+            if os.name == 'nt':  # Windows
+                import winreg
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+                                  r'Software\Google\Chrome\BLBeacon') as key:
+                    version = winreg.QueryValueEx(key, 'version')[0]
+            else:  # macOS and Linux
+                import subprocess
+                if os.path.exists('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'):
+                    # macOS
+                    cmd = '/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --version'
+                else:
+                    # Linux
+                    cmd = 'google-chrome --version' if shutil.which('google-chrome') else 'chromium --version'
+                version = subprocess.check_output(cmd, shell=True).decode('utf-8').strip()
+                version = re.search(r'\d+\.\d+\.\d+', version).group()
+            return version
+        except Exception as e:
+            self._logger.warning(f"Could not detect Chrome version: {e}")
+            return '114.0.0.0'  # Fallback to a common version
+
+    def _initialize_driver(self):
+        """Initialize the Chrome WebDriver with the specified configuration."""
         try:
             self._logger.info("Initializing Chrome WebDriver...")
             
             # Set up Chrome options
-            chrome_options = self._create_chrome_options()
+            chrome_options = ChromeOptions()
             
-            # Set up Chrome service with specific ChromeDriver version
-            self._logger.debug("Setting up ChromeDriver...")
+            # Set headless mode if specified
+            if self.config.headless:
+                chrome_options.add_argument("--headless=new")
+                chrome_options.add_argument("--disable-gpu")
             
-            # For Chrome 136, we need a specific ChromeDriver version
-            # Let's try to get the latest ChromeDriver that supports Chrome 136
-            chrome_version = "136.0.7103.114"  # The Chrome version we're using
+            # Add additional arguments
+            for arg in self.config.chrome_args:
+                chrome_options.add_argument(arg)
             
-            # Initialize ChromeDriverManager with the specific Chrome version
-            driver_manager = ChromeDriverManager(chrome_type=ChromeType.CHROMIUM)
-            driver_path = driver_manager.install()
+            # Set up Chrome service with version detection
+            chrome_version = self._get_chrome_version()
+            self._logger.info(f"Detected Chrome version: {chrome_version}")
             
-            # Create Chrome service with the downloaded driver
-            self._service = ChromeService(executable_path=driver_path)
-            
-            # Initialize the WebDriver
-            self._logger.debug("Initializing WebDriver...")
-            self.driver = webdriver.Chrome(
-                service=self._service,
-                options=chrome_options
+            # Configure ChromeDriver manager with version detection
+            driver_manager = ChromeDriverManager(
+                version=chrome_version.split('.')[0],  # Use major version
+                chrome_type=ChromeType.CHROMIUM if self.config.chromium else ChromeType.GOOGLE
             )
+            
+            # Set up Chrome service
+            self._service = ChromeService(driver_manager.install())
+            
+            # Initialize WebDriver with retry logic
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    self.driver = webdriver.Chrome(
+                        service=self._service,
+                        options=chrome_options
+                    )
+                    break
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        raise
+                    self._logger.warning(f"Attempt {attempt + 1} failed: {str(e)}. Retrying...")
+                    time.sleep(2)  # Wait before retry
             
             # Set window size if specified
             if self.config.window_size:
-                self._logger.debug(f"Setting window size to {self.config.window_size}")
                 self.driver.set_window_size(*self.config.window_size)
             else:
-                self._logger.debug("Maximizing window")
                 self.driver.maximize_window()
-                
+            
             self._logger.info("Chrome WebDriver initialized successfully")
             
         except Exception as e:
-            self._logger.error(f"Failed to initialize Chrome WebDriver: {e}", exc_info=True)
-            self._cleanup()
+            self._logger.error(f"Failed to initialize Chrome WebDriver: {str(e)}")
             raise
     
     def _create_chrome_options(self) -> ChromeOptions:

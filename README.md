@@ -34,11 +34,13 @@ A robust and extensible Chrome browser automation tool built with Selenium and P
    ```
 
 2. **Run the setup script**
+
    ```powershell
    .\setup_env.ps1
    ```
-   
+
    For development with additional tools:
+
    ```powershell
    .\setup_env.ps1 -Dev
    ```
@@ -52,14 +54,16 @@ A robust and extensible Chrome browser automation tool built with Selenium and P
    ```
 
 2. **Set up a virtual environment**
-   
+
    **Windows:**
+
    ```powershell
    python -m venv .venv
    .\.venv\Scripts\Activate.ps1
    ```
-   
+
    **macOS/Linux:**
+
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate

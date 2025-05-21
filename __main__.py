@@ -79,26 +79,9 @@ def main():
         # Launch browser
         from core.browser.chrome import ChromeBrowser
         from core.config import ChromeConfig
+        from core.utils import signal_handling
         import time
-        import signal
-        import sys
         
-        # Global variable to track browser instance
-        global browser_instance
-        browser_instance = None
-        
-        def signal_handler(sig, frame):
-            """Handle interrupt signals (Ctrl+C)."""
-            print("\n\nReceived interrupt signal. Shutting down...")
-            if browser_instance:
-                browser_instance.stop()
-            sys.exit(0)
-            
-        # Register signal handlers
-        signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
-        if hasattr(signal, 'SIGBREAK'):
-            signal.signal(signal.SIGBREAK, signal_handler)  # Windows console close
-            
         try:
             # Get URL from user
             url = input("Enter URL to load (e.g., https://example.com): ").strip()
@@ -137,24 +120,28 @@ def main():
                 print("\nBrowser will close automatically in 30 seconds...")
                 print("Press Ctrl+C to close immediately")
                 
-                # Wait for 30 seconds or until interrupted
-                for _ in range(30):
-                    time.sleep(1)  # Sleep in smaller intervals to be more responsive to interrupts
-                
-            except KeyboardInterrupt:
-                print("\nInterrupted by user.")
+                    # Wait for 30 seconds or until interrupted
+                    print("\nBrowser will close automatically in 30 seconds...")
+                    print("Press Ctrl+C to close immediately")
+                    
+                    start_time = time.time()
+                    while time.time() - start_time < 30:
+                        time.sleep(0.5)  # Shorter sleep for better responsiveness
+                        
+                except KeyboardInterrupt:
+                    print("\nInterrupted by user.")
+                except Exception as e:
+                    print(f"\nError: {e}")
+                    time.sleep(2)  # Give user a moment to see the error
+                finally:
+                    if browser.is_running():
+                        print("\nShutting down browser...")
+                        browser.stop()
+                        print("Browser closed.")
+            
             except Exception as e:
-                print(f"\nError: {e}")
-                time.sleep(2)  # Give user a moment to see the error
-            finally:
-                print("\nShutting down browser...")
-                browser.stop()
-                browser_instance = None  # Clear the global reference
-                print("Browser closed.")
-                
-        except Exception as e:
-            print(f"\nFatal error: {e}")
-            return 1
+                print(f"\nFatal error: {e}")
+                return 1
             
         return 0
     

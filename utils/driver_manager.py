@@ -140,9 +140,12 @@ class ChromeDriverManager:
     
     def download_driver(self, url: str, target_path: Path) -> None:
         """Download and extract ChromeDriver."""
+        zip_path = target_path.with_suffix('.zip')
+        temp_dir = target_path.parent / 'temp_extract'
+        
         try:
-            # Create target directory if it doesn't exist
-            target_path.parent.mkdir(parents=True, exist_ok=True)
+            # Create temp directory for extraction
+            temp_dir.mkdir(parents=True, exist_ok=True)
             
             # Download the file
             self.logger.info(f"Downloading ChromeDriver from {url}")
@@ -150,28 +153,59 @@ class ChromeDriverManager:
             response.raise_for_status()
             
             # Save the zip file
-            zip_path = target_path.with_suffix('.zip')
             with open(zip_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
             
             # Extract the zip file
-            self.logger.info(f"Extracting ChromeDriver to {target_path.parent}")
+            self.logger.info(f"Extracting ChromeDriver to {temp_dir}")
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(target_path.parent)
+                zip_ref.extractall(temp_dir)
+            
+            # Find the chromedriver executable in the extracted files
+            driver_executable = None
+            for root, _, files in os.walk(temp_dir):
+                for file in files:
+                    if file.lower() in ('chromedriver', 'chromedriver.exe'):
+                        driver_executable = Path(root) / file
+                        break
+                if driver_executable:
+                    break
+            
+            if not driver_executable or not driver_executable.exists():
+                raise RuntimeError("Could not find chromedriver executable in the downloaded package")
+            
+            # Move to target location
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            if driver_executable != target_path:
+                if target_path.exists():
+                    target_path.unlink()
+                driver_executable.rename(target_path)
+            
+            # Clean up
+            if temp_dir.exists():
+                import shutil
+                shutil.rmtree(temp_dir)
+            if zip_path.exists():
+                zip_path.unlink()
             
             # Make the driver executable (Unix-like systems)
             if platform.system() != 'Windows':
-                os.chmod(target_path, 0o755)
-            
-            # Clean up the zip file
-            zip_path.unlink()
+                target_path.chmod(0o755)
             
             self.logger.info(f"Successfully installed ChromeDriver to {target_path}")
             
         except Exception as e:
+            # Clean up on error
             if target_path.exists():
                 target_path.unlink()
+            if temp_dir.exists():
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            if zip_path.exists():
+                zip_path.unlink()
+                
+            self.logger.error(f"Failed to download ChromeDriver: {str(e)}")
             raise RuntimeError(f"Failed to download ChromeDriver: {e}")
     
     def setup_chromedriver(self, target_dir: Optional[Path] = None) -> Path:

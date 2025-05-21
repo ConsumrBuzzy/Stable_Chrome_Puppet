@@ -5,7 +5,6 @@ This module provides a high-level interface for browser automation using Seleniu
 It includes Chrome-specific implementations, element handling, navigation, and screenshot utilities.
 
 Key Components:
-    - ChromePuppet: High-level browser automation interface
     - ChromeBrowser: Core browser control implementation
     - ChromeConfig: Configuration container for browser settings
     - ElementHelper: Utilities for element interaction
@@ -13,18 +12,20 @@ Key Components:
     - ScreenshotHelper: Screenshot capture utilities
 
 Example:
-    >>> from core import ChromePuppet, ChromeConfig
+    >>> from core.browser.chrome import ChromeBrowser
+    >>> from core.config import ChromeConfig
     >>> config = ChromeConfig(headless=True)
-    >>> with ChromePuppet(config) as browser:
+    >>> with ChromeBrowser(config=config) as browser:
+    ...     browser.start()
     ...     browser.navigate_to("https://example.com")
-    ...     title = browser.execute_script("return document.title")
+    ...     title = browser.driver.title
     ...     browser.take_screenshot("example.png")
+    ...     browser.stop()
 """
 
 # Import key components to make them available at the package level
 from .base import BaseBrowser, retry_on_failure
 from .chrome import ChromeBrowser
-from .puppet import ChromePuppet
 from .element import ElementHelper
 from .navigation import NavigationMixin, wait_for_page_load
 from .screenshot import ScreenshotHelper
@@ -44,10 +45,7 @@ __version__ = '0.1.0'
 
 # Define what gets imported with 'from browser import *'
 __all__ = [
-    # Main interface
-    'ChromePuppet',
-    
-    # Browser implementations
+    # Browser implementation
     'ChromeBrowser',
     'BaseBrowser',
     

@@ -4,18 +4,12 @@ Setup script for Chrome Puppet package.
 This script handles the packaging and distribution of the Chrome Puppet package,
 including its dependencies and metadata.
 """
-import os
-import re
 from pathlib import Path
 from setuptools import setup, find_packages
 
-# Read the README
-this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text(encoding="utf-8")
-
 def get_version() -> str:
     """Read version from VERSION file."""
-    version_file = this_directory / "VERSION"
+    version_file = Path(__file__).parent / "VERSION"
     if version_file.exists():
         return version_file.read_text(encoding="utf-8").strip()
     return "0.1.0"
@@ -23,12 +17,19 @@ def get_version() -> str:
 def get_requirements(filename: str) -> list:
     """Read requirements from a requirements file."""
     requirements = []
-    with open(filename, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith(("#", "--")):
-                requirements.append(line)
+    try:
+        with open(filename, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith(("#", "--")):
+                    requirements.append(line)
+    except FileNotFoundError:
+        pass
     return requirements
+
+# Read the README
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
 # Get dependencies
 install_requires = get_requirements("requirements.txt")

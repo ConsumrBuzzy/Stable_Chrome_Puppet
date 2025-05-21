@@ -150,7 +150,7 @@ class ChromePuppet:
                 chrome_options.add_argument("--disable-gpu")
             
             # Add additional arguments
-            for arg in self.config.chrome_args:
+            for arg in self.config.chrome_arguments:
                 chrome_options.add_argument(arg)
             
             # Set up Chrome service with version detection

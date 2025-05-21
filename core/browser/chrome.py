@@ -463,25 +463,10 @@ class ChromeBrowser(BaseBrowser):
         """Context manager entry."""
         self.start()
         return self
-        
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self.stop()
         return False  # Don't suppress exceptions
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
-                                  r"Software\Google\Chrome\BLBeacon") as key:
-                    version = winreg.QueryValueEx(key, 'version')[0]
-                    return version.split('.')[0]  # Return major version
-            else:
-                # For macOS and Linux
-                import subprocess
-                result = subprocess.run(['google-chrome', '--version'], 
-                                     capture_output=True, text=True)
-                if result.returncode == 0:
-                    return result.stdout.strip().split()[-1].split('.')[0]
-        except Exception as e:
-            self._logger.warning(f"Could not detect Chrome version: {e}")
-        return None
 
     def _get_chrome_bitness(self) -> str:
         """Detect Chrome installation bitness.

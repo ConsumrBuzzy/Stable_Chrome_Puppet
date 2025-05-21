@@ -79,13 +79,29 @@ class ChromeDriverManager:
     def get_matching_chromedriver_version(self) -> str:
         """Get the ChromeDriver version that matches the installed Chrome version."""
         try:
-            version_url = f"{self.CHROME_VERSION_URL}_{self.chrome_version.rsplit('.', 1)[0]}"
+            # First try to get the exact version match
+            version_url = f"{self.CHROME_VERSION_URL}_{self.chrome_version}"
             response = requests.get(version_url, timeout=10)
             response.raise_for_status()
             return response.text.strip()
-        except requests.RequestException as e:
-            self.logger.warning(f"Could not find matching ChromeDriver version, using Chrome version: {e}")
-            return self.chrome_version
+        except requests.RequestException:
+            try:
+                # If exact version fails, try with just major version
+                major_version = self.chrome_version.split('.')[0]
+                version_url = f"{self.CHROME_VERSION_URL}_{major_version}"
+                response = requests.get(version_url, timeout=10)
+                response.raise_for_status()
+                return response.text.strip()
+            except requests.RequestException as e:
+                # If all else fails, try to get the latest version
+                try:
+                    self.logger.warning(f"Could not find matching ChromeDriver version, trying latest: {e}")
+                    response = requests.get(self.CHROME_VERSION_URL, timeout=10)
+                    response.raise_for_status()
+                    return response.text.strip()
+                except requests.RequestException as e:
+                    self.logger.error(f"Failed to get ChromeDriver version: {e}")
+                    return "114.0.5735.90"  # Fallback to a known working version
     
     def get_driver_url(self, version: str) -> str:
         """Get the download URL for ChromeDriver."""

@@ -202,22 +202,42 @@ class ChromePuppet:
         Returns:
             bool: True if navigation was successful, False otherwise
         """
-        if not url.startswith(('http://', 'https://')):
-            url = f'https://{url}'
-            
         try:
+            # Clean and validate URL
+            url = url.strip()
+            
+            # Check if URL has a scheme, add https:// if missing
+            if not url.startswith(('http://', 'https://')):
+                url = f'https://{url}'
+            
+            # Ensure URL is properly formatted
+            if not re.match(r'^https?://[\w\-.]+\.[a-z]{2,}(?:/\S*)?$', url, re.IGNORECASE):
+                self._logger.error(f"Invalid URL format: {url}")
+                return False
+                
             self._logger.info(f"Navigating to {url}")
+            
+            # Set page load timeout
+            wait = wait_time or self.config.implicit_wait
+            self.driver.set_page_load_timeout(wait)
+            
+            # Navigate to URL
             self.driver.get(url)
             
-            # Wait for page to load
-            wait = wait_time or self.config.implicit_wait
+            # Wait for page to load completely
             WebDriverWait(self.driver, wait).until(
                 lambda d: d.execute_script('return document.readyState') == 'complete'
             )
+            
+            # Take a screenshot for verification
+            self.take_screenshot("page_loaded")
+            self._logger.info(f"Successfully loaded {url}")
             return True
             
         except Exception as e:
-            self._logger.error(f"Error navigating to {url}: {str(e)}")
+            self._logger.error(f"Error navigating to {url}: {str(e)}", exc_info=True)
+            # Take a screenshot on error
+            self.take_screenshot("navigation_error")
             return False
     
     def quit(self):

@@ -19,7 +19,7 @@ from selenium.common.exceptions import (
     ElementClickInterceptedException
 )
 from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.utils import ChromeType
+from webdriver_manager.core.os_manager import ChromeType
 from bs4 import BeautifulSoup
 
 from .config import ChromeConfig, DEFAULT_CONFIG

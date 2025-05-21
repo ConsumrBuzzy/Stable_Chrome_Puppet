@@ -165,6 +165,18 @@ def retry(
     
     return wrapper
 
+def get_timestamp(fmt: str = "%Y%m%d_%H%M%S") -> str:
+    """Get current timestamp in the specified format.
+    
+    Args:
+        fmt: Format string for the timestamp (default: "%Y%m%d_%H%M%S")
+        
+    Returns:
+        Formatted timestamp string
+    """
+    return datetime.datetime.now().strftime(fmt)
+
+
 def ensure_file(file_path: Union[str, Path], default_content: str = "") -> bool:
     """Ensure a file exists, creating it with default content if it doesn't.
     

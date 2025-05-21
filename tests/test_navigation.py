@@ -1,13 +1,18 @@
 """Test browser navigation and page interactions."""
+import os
+import sys
 import unittest
 import time
 from pathlib import Path
+
+# Add parent directory to path to import our package
+sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from .base_test import BaseTest
+from tests.base_test import BaseTest
 
 class TestNavigation(BaseTest):
     """Test browser navigation and page interactions."""

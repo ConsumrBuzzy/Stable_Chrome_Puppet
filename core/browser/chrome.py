@@ -117,6 +117,10 @@ class ChromeBrowser(BaseBrowser):
             for arg in self.config.chrome_arguments:
                 if arg not in ["--headless", "--disable-gpu"]:  # Avoid duplicates
                     options.add_argument(arg)
+                    
+            # Set custom user agent if specified
+            if self.config.user_agent:
+                options.add_argument(f"--user-agent={self.config.user_agent}")
             
             # Set window size
             if self.config.window_size:

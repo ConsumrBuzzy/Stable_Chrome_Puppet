@@ -13,14 +13,15 @@ if project_root not in sys.path:
 
 from core.browser.chrome import ChromeBrowser
 from core.browser.base import BaseBrowser
+from core.config import ChromeConfig
 
 def main():
     # Configure Chrome to run in headed mode
-    chrome_options = {
-        'headless': False,  # Run in headed mode
-        'window_size': (1280, 1024),
-        'implicit_wait': 10,
-        'arguments': [
+    config = ChromeConfig(
+        headless=False,  # Run in headed mode
+        window_size=(1280, 1024),
+        implicit_wait=10,
+        chrome_arguments=[
             "--disable-notifications",
             "--disable-infobars",
             "--disable-extensions",
@@ -28,10 +29,10 @@ def main():
             "--no-sandbox",
             "--disable-dev-shm-usage"
         ]
-    }
+    )
     
     # Create and start the browser
-    browser = ChromeBrowser(**chrome_options)
+    browser = ChromeBrowser(config)
     
     try:
         print("Starting Chrome browser...")

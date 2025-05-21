@@ -22,6 +22,8 @@ Whether you're building web scrapers, automated tests, or browser-based workflow
 - **Stable Automation**: Built-in retries and error recovery
 - **Modern API**: Intuitive Python interface for browser control
 - **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Robust Error Handling**: Comprehensive error handling and recovery mechanisms
+- **Automatic ChromeDriver Management**: No need to manually manage ChromeDriver versions
 
 ### Developer Experience
 - **Automatic Setup**: Handles ChromeDriver management
@@ -86,19 +88,52 @@ Explore our comprehensive documentation:
 ### Basic Usage
 
 ```python
-from core.browser import ChromeBrowser
-from core.config import ChromeConfig
+from core.browser import ChromeBrowser, ChromeConfig
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 # Configure browser
 config = ChromeConfig(
-    headless=False,
-    window_size=(1280, 1024)
+    headless=False,  # Set to True for headless mode
+    window_size=(1200, 800),
+    chrome_arguments=[
+        "--disable-notifications",
+        "--disable-extensions"
+    ]
 )
 
 # Initialize browser
-with ChromeBrowser(config) as browser:
+browser = None
+try:
+    print("Starting Chrome browser...")
+    browser = ChromeBrowser(config)
+    browser.start()
+    
     # Navigate to a website
-    browser.get("https://example.com")
+    print("Navigating to Google...")
+    browser.navigate_to("https://www.google.com")
+    
+    # Get current URL
+    print(f"Current URL: {browser.get_current_url()}")
+    
+    # Get page source (first 200 chars)
+    print(f"Page source preview: {browser.get_page_source()[:200]}...")
+    
+    # Take a screenshot
+    if browser.take_screenshot("screenshot.png"):
+        print("Screenshot saved!")
+        
+except Exception as e:
+    print(f"An error occurred: {e}")
+    
+finally:
+    # Ensure browser is properly closed
+    if browser:
+        print("Stopping browser...")
+        browser.stop()
+```
     
     # Take a screenshot
     browser.screenshot.take_screenshot("example.png")

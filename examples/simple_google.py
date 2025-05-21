@@ -4,8 +4,9 @@ Simple example to open Chrome and navigate to Google.com using Selenium directly
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 import time
+import os
+from pathlib import Path
 
 def main():
     # Set up Chrome options
@@ -17,12 +18,19 @@ def main():
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     
+    # Get the path to ChromeDriver (assuming it's in the project root)
+    project_root = Path(__file__).parent.parent
+    chromedriver_path = project_root / 'chromedriver.exe'
+    
+    if not chromedriver_path.exists():
+        print("ChromeDriver not found. Please download it and place it in the project root.")
+        print(f"Expected path: {chromedriver_path}")
+        return
+    
     # Initialize the Chrome WebDriver
     print("Starting Chrome browser...")
-    driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=chrome_options
-    )
+    service = Service(executable_path=str(chromedriver_path))
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     
     try:
         # Navigate to Google

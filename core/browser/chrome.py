@@ -73,80 +73,115 @@ class ChromeBrowser(BaseBrowser):
         self._is_running = False
     
     def _get_chrome_driver_path(self) -> str:
-        """Get the path to the ChromeDriver executable."""
-        try:
-            # First try to use webdriver-manager to get the correct ChromeDriver
-            driver_path = ChromeDriverManager().install()
-            self._logger.info(f"Using ChromeDriver from webdriver-manager: {driver_path}")
-            return driver_path
+        """
+        Get the path to the ChromeDriver executable.
+        
+        Returns:
+            str: Path to the ChromeDriver executable
             
-        except Exception as e:
-            self._logger.warning(f"Failed to get ChromeDriver from webdriver-manager: {e}")
-            
-            # Fallback to common locations
-            chromedriver_name = 'chromedriver.exe' if os.name == 'nt' else 'chromedriver'
-            is_64bit = sys.maxsize > 2**32
-            
-            # Check common locations
-            common_paths = [
-                os.path.join(os.path.dirname(__file__), 'bin', chromedriver_name),
-                os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 
-                             'win64' if is_64bit else 'win32', chromedriver_name),
-                os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'mac64', chromedriver_name),
-                os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'linux64', chromedriver_name),
-                'chromedriver',
-                '/usr/local/bin/chromedriver',
-                '/usr/bin/chromedriver',
-                os.path.join(os.environ.get('PROGRAMFILES', ''), 'ChromeDriver', chromedriver_name),
-                os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), 'ChromeDriver', chromedriver_name)
-            ]
-            
-            for path in common_paths:
-                if os.path.exists(path):
-                    self._logger.info(f"Found ChromeDriver at: {path}")
-                    return path
-            
-            raise BrowserError(
-                "Could not find or download ChromeDriver. "
-                f"System: {platform.system()} {platform.machine()} (64-bit: {is_64bit})\n"
-                "Please ensure it's installed and in your PATH, or install it manually from "
-                "https://chromedriver.chromium.org/downloads"
-            )
-    
+        Raises:
+            BrowserError: If ChromeDriver cannot be found or installed
+        """
+        # Try to find ChromeDriver in common locations
+        common_paths = [
+            "chromedriver",
+            "chromedriver.exe",
+            "/usr/local/bin/chromedriver",
+            "/usr/bin/chromedriver",
+            "C:\\chromedriver\\chromedriver.exe",
+            str(Path.home() / "chromedriver" / "chromedriver.exe")
+        ]
+        
+        # Check common paths first
+        for path in common_paths:
+            if os.path.exists(path):
+                self._logger.info(f"Found ChromeDriver at: {path}")
+                return path
+        
+        # Try webdriver-manager if available
+        if ChromeDriverManager is not None:
+            try:
+                driver_path = ChromeDriverManager().install()
+                self._logger.info(f"Using ChromeDriver from webdriver-manager: {driver_path}")
+                return driver_path
+            except Exception as e:
+                self._logger.warning(f"Failed to install ChromeDriver: {e}")
+        
+        # If we get here, we couldn't find ChromeDriver
+        error_msg = (
+            "Could not find ChromeDriver. Please ensure it's installed and in your PATH, "
+            "or install webdriver-manager with: pip install webdriver-manager"
+        )
+        self._logger.error(error_msg)
+        raise BrowserError(error_msg)
+        
+        # Fallback to common locations
+        chromedriver_name = 'chromedriver.exe' if os.name == 'nt' else 'chromedriver'
+        is_64bit = sys.maxsize > 2**32
+        
+        # Check common locations
+        common_paths = [
+            os.path.join(os.path.dirname(__file__), 'bin', chromedriver_name),
+            os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 
+                         'win64' if is_64bit else 'win32', chromedriver_name),
+            os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'mac64', chromedriver_name),
+            os.path.join(os.path.expanduser('~'), '.wdm', 'drivers', 'chromedriver', 'linux64', chromedriver_name),
+            'chromedriver',
+            '/usr/local/bin/chromedriver',
+            '/usr/bin/chromedriver',
+            os.path.join(os.environ.get('PROGRAMFILES', ''), 'ChromeDriver', chromedriver_name),
+            os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), 'ChromeDriver', chromedriver_name)
+        ]
+        
+        for path in common_paths:
+            if os.path.exists(path):
+                self._logger.info(f"Found ChromeDriver at: {path}")
+                return path
+        
     @retry_on_failure(max_retries=3, delay=2, backoff=2, exceptions=(WebDriverException,))
     def start(self) -> None:
-        """Start the Chrome browser."""
-        if self.driver is not None:
+        """
+        Start the Chrome browser with the configured settings.
+        
+        Raises:
+            BrowserError: If the browser fails to start
+        """
+        if self._is_running and self.driver is not None:
             self._logger.warning("Browser is already running")
             return
-        
-        self._logger.info("Starting Chrome browser...")
-        
+            
         try:
+            self._logger.info("Starting Chrome browser...")
+            
             # Set up Chrome options
-            chrome_options = ChromeOptions()
+            options = ChromeOptions()
             
             # Set headless mode if specified
             if self.config.headless:
-                chrome_options.add_argument("--headless=new")
-                chrome_options.add_argument("--disable-gpu")
-            
-            # Add additional arguments
+                options.add_argument("--headless=new")
+                options.add_argument("--disable-gpu")
+                
+            # Add additional Chrome arguments
             for arg in self.config.chrome_arguments:
                 if arg not in ["--headless", "--disable-gpu"]:  # Avoid duplicates
-                    chrome_options.add_argument(arg)
+                    options.add_argument(arg)
             
-            # Add common arguments for stability
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--remote-debugging-port=9222")
-            chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+            # Set window size
+            if self.config.window_size:
+                options.add_argument(f"--window-size={self.config.window_size[0]},{self.config.window_size[1]}")
+            else:
+                options.add_argument("--start-maximized")
             
-            # Disable automation flags that might trigger bot detection
-            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            chrome_options.add_experimental_option('useAutomationExtension', False)
+            # Additional performance and stability options
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-blink-features=AutomationControlled")
             
-            # Get ChromeDriver path
+            # Disable automation flags detection
+            options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            options.add_experimental_option('useAutomationExtension', False)
+            
+            # Set up the Chrome service
             driver_path = self._get_chrome_driver_path()
             
             # Create Chrome service with the driver path

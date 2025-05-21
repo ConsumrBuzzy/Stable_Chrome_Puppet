@@ -80,51 +80,82 @@ def main():
         from core.browser.chrome import ChromeBrowser
         from core.config import ChromeConfig
         import time
+        import signal
+        import sys
         
-        # Get URL from user
-        url = input("Enter URL to load (e.g., https://example.com): ").strip()
-        if not url:
-            print("No URL provided. Using default: https://example.com")
-            url = "https://example.com"
+        # Global variable to track browser instance
+        global browser_instance
+        browser_instance = None
+        
+        def signal_handler(sig, frame):
+            """Handle interrupt signals (Ctrl+C)."""
+            print("\n\nReceived interrupt signal. Shutting down...")
+            if browser_instance:
+                browser_instance.stop()
+            sys.exit(0)
             
-        # Ensure URL has a scheme
-        if not url.startswith(('http://', 'https://')):
-            url = 'https://' + url
+        # Register signal handlers
+        signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
+        if hasattr(signal, 'SIGBREAK'):
+            signal.signal(signal.SIGBREAK, signal_handler)  # Windows console close
             
-        print(f"\nLaunching Chrome browser (headed mode) to load: {url}")
-        
-        # Configure browser (force headed mode)
-        config = ChromeConfig(
-            headless=False,  # Force headed mode
-            window_size=(1366, 768),
-            verbose=True
-        )
-        
-        browser = ChromeBrowser(config=config)
         try:
-            # Start browser and navigate to URL
-            print("Starting browser...")
-            browser.start()
-            print(f"Navigating to {url}...")
-            browser.navigate_to(url)
+            # Get URL from user
+            url = input("Enter URL to load (e.g., https://example.com): ").strip()
+            if not url:
+                print("No URL provided. Using default: https://example.com")
+                url = "https://example.com"
+                
+            # Ensure URL has a scheme
+            if not url.startswith(('http://', 'https://')):
+                url = 'https://' + url
+                
+            print(f"\nLaunching Chrome browser (headed mode) to load: {url}")
             
-            # Display page info
-            print(f"\nPage loaded successfully!")
-            print(f"Title: {browser.driver.title}")
-            print(f"URL: {browser.get_current_url()}")
-            print("\nBrowser will close automatically in 30 seconds...")
+            # Configure browser (force headed mode)
+            config = ChromeConfig(
+                headless=False,  # Force headed mode
+                window_size=(1366, 768),
+                verbose=True
+            )
             
-            # Wait for 30 seconds
-            time.sleep(30)
+            # Initialize browser
+            browser = ChromeBrowser(config=config)
+            browser_instance = browser  # Store globally for signal handler
             
+            try:
+                # Start browser and navigate to URL
+                print("Starting browser...")
+                browser.start()
+                print(f"Navigating to {url}...")
+                browser.navigate_to(url)
+                
+                # Display page info
+                print(f"\nPage loaded successfully!")
+                print(f"Title: {browser.driver.title}")
+                print(f"URL: {browser.get_current_url()}")
+                print("\nBrowser will close automatically in 30 seconds...")
+                print("Press Ctrl+C to close immediately")
+                
+                # Wait for 30 seconds or until interrupted
+                for _ in range(30):
+                    time.sleep(1)  # Sleep in smaller intervals to be more responsive to interrupts
+                
+            except KeyboardInterrupt:
+                print("\nInterrupted by user.")
+            except Exception as e:
+                print(f"\nError: {e}")
+                time.sleep(2)  # Give user a moment to see the error
+            finally:
+                print("\nShutting down browser...")
+                browser.stop()
+                browser_instance = None  # Clear the global reference
+                print("Browser closed.")
+                
         except Exception as e:
-            print(f"\nError: {e}")
-            # Wait a bit before closing if there was an error
-            time.sleep(5)
-        finally:
-            print("\nShutting down browser...")
-            browser.stop()
-            print("Browser closed.")
+            print(f"\nFatal error: {e}")
+            return 1
+            
         return 0
     
     else:

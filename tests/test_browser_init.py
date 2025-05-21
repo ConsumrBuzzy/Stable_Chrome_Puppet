@@ -9,7 +9,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
 from selenium.webdriver.common.by import By
-from tests.base_test import BaseTest
+
+# Import base test
+if __name__ == '__main__':
+    # When running this file directly
+    from base_test import BaseTest
+else:
+    # When running as part of a test suite
+    from tests.base_test import BaseTest
 
 class TestBrowserInitialization(BaseTest):
     """Test browser initialization and basic operations."""

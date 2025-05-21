@@ -12,7 +12,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from tests.base_test import BaseTest
+# Import base test
+if __name__ == '__main__':
+    # When running this file directly
+    from base_test import BaseTest
+else:
+    # When running as part of a test suite
+    from tests.base_test import BaseTest
 
 class TestNavigation(BaseTest):
     """Test browser navigation and page interactions."""

@@ -2,11 +2,11 @@
 
 > **Automate Chrome with confidence** - A robust, production-ready browser automation framework
 
-Chrome Puppet is a Python framework that makes browser automation simple and reliable. Built on top of Selenium, it provides a clean, intuitive API for automating Chrome/Chromium browsers with built-in best practices for stability and maintainability.
-
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+Chrome Puppet is a Python framework that makes browser automation simple and reliable. Built on top of Selenium, it provides a clean, intuitive API for automating Chrome/Chromium browsers with built-in best practices for stability and maintainability.
 
 ## ✨ Features
 
@@ -20,113 +20,38 @@ Chrome Puppet is a Python framework that makes browser automation simple and rel
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Python 3.8+
 - Chrome/Chromium browser
 
 ### Installation
 
-1. **Clone and set up the project**
-   ```bash
-   git clone https://github.com/consumrbuzzy/chrome-puppet.git
-   cd chrome-puppet
-   ```
+```bash
+# Install from PyPI
+pip install chrome-puppet
 
-2. **Set up a virtual environment**
-   ```bash
-   # Windows
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   
-   # macOS/Linux
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Run the example**
-   ```bash
-   python examples/basic_usage.py
-   ```
-
-## 📚 Documentation
-
-Explore our comprehensive documentation:
-
-- [AGENT.md](AGENT.md) - Technical reference for developers and AI agents
-- [API Reference](docs/API.md) - Detailed API documentation
-- [Examples](examples/) - Practical code samples
-- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+# Or install from source
+git clone https://github.com/consumrbuzzy/chrome-puppet.git
+cd chrome-puppet
+pip install -e .
+```
 
 ### Basic Usage
 
 ```python
-from core.browser.chrome import ChromeBrowser
-from core.config import ChromeConfig
-import logging
+from chrome_puppet import ChromePuppet
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-
-# Configure browser
-config = ChromeConfig(
-    headless=False,  # Set to True for headless mode
-    window_size=(1200, 800),
-    chrome_arguments=[
-        "--disable-notifications",
-        "--disable-extensions"
-    ]
-)
-
-# Initialize browser
-browser = None
-try:
-    print("Starting Chrome browser...")
-    browser = ChromeBrowser(config)
-    browser.start()
-    
-    # Navigate to a website
-    print("Navigating to Google...")
-    browser.navigate_to("https://www.google.com")
-    
-    # Get current URL
-    print(f"Current URL: {browser.get_current_url()}")
-    
-    # Get page source (first 200 chars)
-    print(f"Page source preview: {browser.get_page_source()[:200]}...")
-    
-    # Take a screenshot
-    if browser.take_screenshot("screenshot.png"):
-        print("Screenshot saved!")
-        
-except Exception as e:
-    print(f"An error occurred: {e}")
-    
-finally:
-    # Ensure browser is properly closed
-    if browser:
-        print("Stopping browser...")
-        browser.stop()
+# Create a browser instance and navigate to a page
+with ChromePuppet() as browser:
+    browser.get("https://example.com")
+    print(f"Page title: {browser.driver.title}")
 ```
-    
-    # Take a screenshot
-    browser.screenshot.take_screenshot("example.png")
-    
-    # Find and interact with elements
-    search_box = browser.element.find_element("css", "input[type='search']")
-    browser.element.send_keys("Hello, World!", element=search_box)
-    
-    # Get page content
-    content = browser.get_page_source()
-    print(f"Page title: {browser.get_title()}")
-```
+
+For more detailed examples, see [EXAMPLES.md](EXAMPLES.md).
 
 ## 🏗️ Project Structure
 
-```
+```text
 chrome-puppet/
 ├── core/                    # Core functionality
 │   ├── browser/            # Browser automation code
@@ -148,30 +73,13 @@ chrome-puppet/
 └── requirements*.txt       # Dependencies
 ```
 
-## Basic Usage
+## 📚 Documentation
 
-```python
-from chrome_puppet import ChromePuppet, ChromeConfig
+- [Examples](EXAMPLES.md) - Comprehensive examples and usage patterns
+- [API Reference](docs/API.md) - Detailed API documentation (coming soon)
+- [Contributing Guidelines](CONTRIBUTING.md) - How to contribute to the project
 
-# Create a browser instance
-config = ChromeConfig(
-    headless=True,
-    window_size=(1366, 768),
-    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) ..."
-)
-
-with ChromePuppet(config=config) as browser:
-    # Navigate to a page
-    browser.get("https://example.com")
-    
-    # Get page title
-    print(f"Page title: {browser.driver.title}")
-    
-    # Take a screenshot
-    browser.save_screenshot("screenshot.png")
-```
-
-## Running Tests
+## 🧪 Running Tests
 
 ```bash
 # Install test dependencies
@@ -180,15 +88,15 @@ pip install -r requirements-dev.txt
 # Run all tests
 pytest tests/
 
-# Run a specific test file
-pytest tests/test_browser.py -v
+# Run with coverage report
+pytest --cov=core tests/
 ```
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to submit pull requests.
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 

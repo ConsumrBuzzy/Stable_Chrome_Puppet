@@ -2,6 +2,7 @@
 import os
 import time
 import logging
+from datetime import datetime
 from typing import Optional, Dict, Any, List, Union, Tuple
 from pathlib import Path
 
@@ -22,8 +23,14 @@ from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.os_manager import ChromeType
 from bs4 import BeautifulSoup
 
-from config import ChromeConfig, DEFAULT_CONFIG
-from utils import get_default_download_dir, ensure_dir, is_chrome_installed, get_chrome_version
+from core.config import ChromeConfig, DEFAULT_CONFIG
+from core.utils import (
+    get_default_download_dir,
+    ensure_dir,
+    is_chrome_installed,
+    get_chrome_version,
+    get_timestamp
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +46,81 @@ class ChromePuppet:
         self.config = config or DEFAULT_CONFIG
         self.driver: Optional[WebDriver] = None
         self._service: Optional[ChromeService] = None
+        self._logger = self._setup_logging()
         self._initialize_driver()
+    
+    def _setup_logging(self) -> logging.Logger:
+        """Set up logging configuration."""
+        # Ensure logs directory exists
+        logs_dir = Path("logs")
+        ensure_dir(logs_dir)
+        
+        # Create a logger
+        logger = logging.getLogger("chrome_puppet")
+        logger.setLevel(logging.DEBUG)
+        
+        # Create formatter
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        
+        # Create file handler with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file = logs_dir / f"chrome_puppet_{timestamp}.log"
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(formatter)
+        
+        # Create console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+        
+        # Add handlers to logger
+        logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
+        
+        return logger
+        
+    def _get_screenshot_path(self, prefix: str = "screenshot") -> Path:
+        """Generate a unique screenshot file path."""
+        screenshots_dir = Path("screenshots")
+        ensure_dir(screenshots_dir)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return screenshots_dir / f"{prefix}_{timestamp}.png"
+
+    def take_screenshot(self, prefix: str = "screenshot") -> Optional[Path]:
+        """Take a screenshot and save it to the screenshots directory.
+        
+        Args:
+            prefix: Prefix for the screenshot filename
+            
+        Returns:
+            Path to the saved screenshot or None if failed
+        """
+        if not self.driver:
+            self._logger.warning("Cannot take screenshot: No active WebDriver")
+            return None
+            
+        try:
+            screenshot_path = self._get_screenshot_path(prefix)
+            self.driver.save_screenshot(str(screenshot_path))
+            self._logger.info(f"Screenshot saved to {screenshot_path}")
+            return screenshot_path
+        except Exception as e:
+            self._logger.error(f"Failed to take screenshot: {e}")
+            return None
     
     def _initialize_driver(self) -> None:
         """Initialize the Chrome WebDriver with the configured options."""
         try:
+            self._logger.info("Initializing Chrome WebDriver...")
+            
             # Set up Chrome options
             chrome_options = self._create_chrome_options()
             
             # Set up Chrome service
+            self._logger.debug("Setting up ChromeDriver...")
             self._service = ChromeService(
                 ChromeDriverManager(
                     chrome_type=self.config.chrome_type
@@ -55,6 +128,7 @@ class ChromePuppet:
             )
             
             # Initialize the WebDriver
+            self._logger.debug("Initializing WebDriver...")
             self.driver = webdriver.Chrome(
                 service=self._service,
                 options=chrome_options
@@ -62,12 +136,16 @@ class ChromePuppet:
             
             # Set window size if specified
             if self.config.window_size:
+                self._logger.debug(f"Setting window size to {self.config.window_size}")
                 self.driver.set_window_size(*self.config.window_size)
+            else:
+                self._logger.debug("Maximizing window")
+                self.driver.maximize_window()
                 
-            logger.info("Chrome WebDriver initialized successfully")
+            self._logger.info("Chrome WebDriver initialized successfully")
             
         except Exception as e:
-            logger.error(f"Failed to initialize Chrome WebDriver: {e}")
+            self._logger.error(f"Failed to initialize Chrome WebDriver: {e}", exc_info=True)
             self._cleanup()
             raise
     

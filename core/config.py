@@ -35,6 +35,9 @@ class ChromeConfig:
     chrome_options: Dict[str, Any] = field(default_factory=dict)
     """Additional Chrome options to pass to WebDriver."""
     
+    chrome_arguments: List[str] = field(default_factory=list)
+    """Command line arguments to pass to Chrome."""
+    
     experimental_options: Dict[str, Any] = field(default_factory=dict)
     """Experimental Chrome options to pass to WebDriver."""
     

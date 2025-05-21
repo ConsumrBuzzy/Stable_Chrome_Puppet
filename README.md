@@ -131,7 +131,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
    ```bash
    pip install -e .
    ```
-   
+
    For development:
    ```bash
    pip install -r requirements-dev.txt

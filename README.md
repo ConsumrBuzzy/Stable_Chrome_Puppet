@@ -62,8 +62,7 @@ chrome-puppet/
 ├── tests/                  # Test suite
 │   ├── __init__.py
 │   ├── conftest.py
-│   ├── test_basic.py       # Basic functionality tests
-│   └── test_browser.py     # Browser-specific tests
+│   └── test_browser.py     # Browser automation tests
 ├── examples/               # Example scripts
 │   ├── browser_example.py  # Basic browser usage
 │   └── simple_chrome.py    # Minimal example

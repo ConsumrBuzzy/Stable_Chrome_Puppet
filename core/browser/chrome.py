@@ -210,7 +210,7 @@ class ChromeBrowser(BaseBrowser):
         return options
         
     def _create_driver(self) -> webdriver.Chrome:
-        """Create and configure a Chrome WebDriver instance.
+        """Create and configure a Chrome WebDriver instance with automatic driver management.
         
         Returns:
             webdriver.Chrome: Configured WebDriver instance
@@ -468,137 +468,7 @@ class ChromeBrowser(BaseBrowser):
         self.stop()
         return False  # Don't suppress exceptions
 
-    def _get_chrome_bitness(self) -> str:
-        """Detect Chrome installation bitness.
-        
-        Returns:
-        """Get Python interpreter bitness.
-    
-        Returns:
-            str: '32' or '64' indicating Python bitness
-        """
-        return '64' if struct.calcsize("P") * 8 == 64 else '32'
 
-    def _download_chromedriver(self, version: str, bitness: str, target_path: Path) -> bool:
-        """Download and save ChromeDriver matching the specified version and bitness.
-    
-        Args:
-            version: Chrome major version number as string
-            bitness: '32' or '64' indicating required bitness
-            target_path: Path where to save the downloaded ChromeDriver
-        
-        Returns:
-            bool: True if download was successful, False otherwise
-        """
-        try:
-            # Construct download URL
-            base_url = "https://chromedriver.storage.googleapis.com"
-            url = f"{base_url}/{version}.0.0/chromedriver_win{bitness}.zip"
-        
-            self._logger.info(f"Downloading ChromeDriver {version} ({bitness}-bit) from: {url}")
-        
-            # Create temp directory
-            temp_dir = target_path.parent / "temp_chromedriver"
-            temp_dir.mkdir(exist_ok=True)
-            zip_path = temp_dir / "chromedriver.zip"
-        
-            # Download the file
-            urllib.request.urlretrieve(url, zip_path)
-        
-            # Extract the file
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(temp_dir)
-            
-            # Find the chromedriver executable
-            chromedriver_exe = next(temp_dir.glob("**/chromedriver*"), None)
-            if not chromedriver_exe or not chromedriver_exe.is_file():
-                self._logger.error("ChromeDriver executable not found in downloaded archive")
-                return False
-            
-        # Move to target location
-        if target_path.exists():
-            target_path.unlink()
-        shutil.move(str(chromedriver_exe), str(target_path))
-        
-        # Set executable permissions on Unix-like systems
-        if platform.system() != "Windows":
-            target_path.chmod(0o755)
-            
-            self._logger.info(f"Successfully downloaded ChromeDriver to: {target_path}")
-            return True
-        
-        except Exception as e:
-            self._logger.error(f"Failed to download ChromeDriver: {e}")
-            return False
-        finally:
-            # Clean up temp directory
-            if 'temp_dir' in locals() and temp_dir.exists():
-                shutil.rmtree(temp_dir, ignore_errors=True)
-
-# Fix the _setup_chrome_options method
-    def _setup_chrome_options(self) -> ChromeOptions:
-    """Set up Chrome options with configured settings.
-    
-    Returns:
-        ChromeOptions: Configured Chrome options
-    """
-    options = ChromeOptions()
-    
-    # Set headless mode if specified
-    if self.config.headless:
-        options.add_argument("--headless=new")
-        options.add_argument("--disable-gpu")
-        
-    # Add additional Chrome arguments
-    for arg in self.config.chrome_arguments:
-        if arg not in ["--headless", "--disable-gpu"]:  # Avoid duplicates
-            options.add_argument(arg)
-            
-    # Set custom user agent if specified
-    if self.config.user_agent:
-        options.add_argument(f"user-agent={self.config.user_agent}")
-    
-    # Set window size
-    if self.config.window_size:
-        options.add_argument(f"--window-size={self.config.window_size[0]},{self.config.window_size[1]}")
-    else:
-        options.add_argument("--start-maximized")
-    
-    # Additional performance and stability options
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    
-    # Disable automation flags detection
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option('useAutomationExtension', False)
-    
-    return options
-
-# Add the missing _cleanup_resources method
-    def _cleanup_resources(self) -> None:
-    """Clean up browser resources."""
-    if hasattr(self, 'driver') and self.driver:
-        try:
-            # Try to close all windows and quit the browser
-            if self.driver.window_handles:
-                self.driver.quit()
-                self._logger.debug("Browser quit successfully")
-        except Exception as e:
-            self._logger.error(f"Error while quitting browser: {e}")
-        finally:
-            self.driver = None
-            self._is_running = False
-    
-    # Stop the Chrome service if it exists
-    if hasattr(self, '_service') and self._service:
-        try:
-            self._service.stop()
-            self._logger.debug("Chrome service stopped")
-        except Exception as e:
-            self._logger.error(f"Error stopping Chrome service: {e}")
-        finally:
-            self._service = None
 
     def _create_driver(self) -> webdriver.Chrome:
     """Create and configure a Chrome WebDriver instance with automatic driver management.

@@ -13,7 +13,8 @@ from typing import Optional
 # Add parent directory to path to allow package imports
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
-from chrome_puppet import ChromePuppet, ChromeConfig
+from core.browser.puppet import ChromePuppet
+from core.browser.chrome import ChromeConfig
 
 # Configure logging
 logging.basicConfig(

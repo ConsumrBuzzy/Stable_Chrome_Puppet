@@ -88,7 +88,8 @@ Explore our comprehensive documentation:
 ### Basic Usage
 
 ```python
-from core.browser import ChromeBrowser, ChromeConfig
+from core.browser.chrome import ChromeBrowser
+from core.config import ChromeConfig
 import logging
 
 # Configure logging

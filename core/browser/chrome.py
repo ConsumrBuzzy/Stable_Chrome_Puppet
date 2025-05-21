@@ -190,7 +190,7 @@ class ChromeBrowser(BaseBrowser):
             # Initialize WebDriver
             self.driver = webdriver.Chrome(
                 service=self._service,
-                options=chrome_options
+                options=options
             )
             
             # Set window size if specified
@@ -211,64 +211,146 @@ class ChromeBrowser(BaseBrowser):
             raise
     
     def stop(self) -> None:
-        """Stop the Chrome browser."""
-        if self.driver is None:
+        """
+        Stop the Chrome browser and clean up resources.
+        
+        This method ensures all browser processes are properly terminated
+        and resources are released.
+        """
+        if not self._is_running or self.driver is None:
             self._logger.warning("Browser is not running")
             return
-        
+            
         self._logger.info("Stopping Chrome browser...")
         
         try:
-            self.driver.quit()
-            self._logger.info("Chrome browser stopped successfully")
+            # Try to close all windows and quit the browser
+            if self.driver.window_handles:
+                self.driver.quit()
+                self._logger.debug("Browser quit successfully")
         except Exception as e:
-            self._logger.error(f"Error while stopping browser: {e}")
-            raise
+            self._logger.error(f"Error while quitting browser: {e}")
+            try:
+                # Force kill if normal quit fails
+                if platform.system() == 'Windows':
+                    os.system('taskkill /f /im chromedriver.exe')
+                    os.system('taskkill /f /im chrome.exe')
+                else:
+                    os.system('pkill -f chromedriver')
+                    os.system('pkill -f chrome')
+                self._logger.warning("Force-killed browser processes")
+            except Exception as kill_error:
+                self._logger.error(f"Failed to kill browser processes: {kill_error}")
         finally:
             self.driver = None
-            self._service = None
+            self._is_running = False
+            
+        # Stop the Chrome service if it exists
+        if self._service is not None:
+            try:
+                self._service.stop()
+                self._logger.debug("Chrome service stopped")
+            except Exception as e:
+                self._logger.error(f"Error stopping Chrome service: {e}")
+            finally:
+                self._service = None
+                
+        self._logger.info("Browser stopped successfully")
     
     @retry_on_failure(max_retries=2, exceptions=(WebDriverException,))
-    def navigate_to(self, url: str, wait_time: Optional[float] = None) -> bool:
-        """Navigate to the specified URL.
+    def navigate_to(self, url: str, timeout: int = 30) -> None:
+        """
+        Navigate to the specified URL and wait for the page to load.
         
         Args:
             url: The URL to navigate to
-            wait_time: Optional time to wait for page load (uses config value if None)
+            timeout: Maximum time to wait for page load in seconds
             
-        Returns:
-            bool: True if navigation was successful
+        Raises:
+            BrowserError: If browser is not initialized
+            NavigationError: If navigation fails or times out
         """
-        if self.driver is None:
-            raise BrowserError("Browser is not running")
-        
+        if not self.driver:
+            raise BrowserNotInitializedError("Browser is not initialized")
+            
         try:
             self._logger.info(f"Navigating to: {url}")
+            
+            # Set page load timeout
+            self.driver.set_page_load_timeout(timeout)
+            
+            # Navigate to URL
             self.driver.get(url)
             
-            # Wait for page to load
-            wait = wait_time or self.config.implicit_wait
-            if wait > 0:
-                self.driver.set_page_load_timeout(wait)
-                self._logger.debug(f"Waiting up to {wait} seconds for page load...")
+            # Wait for document.readyState to be complete
+            WebDriverWait(self.driver, timeout).until(
+                lambda d: d.execute_script('return document.readyState') == 'complete'
+            )
             
-            return True
+            self._logger.info(f"Successfully navigated to: {self.driver.current_url}")
+            
+        except TimeoutException as e:
+            error_msg = f"Page load timed out after {timeout} seconds: {url}"
+            self._logger.error(error_msg)
+            raise NavigationError(error_msg) from e
+            
+        except WebDriverException as e:
+            error_msg = f"Navigation failed: {e.msg if hasattr(e, 'msg') else str(e)}"
+            self._logger.error(f"{error_msg} - URL: {url}")
+            raise NavigationError(error_msg) from e
             
         except Exception as e:
-            self._logger.error(f"Failed to navigate to {url}: {e}")
-            raise NavigationError(f"Failed to navigate to {url}: {e}")
-    
-    def get_page_source(self) -> str:
-        """Get the current page source."""
-        if self.driver is None:
-            raise BrowserError("Browser is not running")
-        return self.driver.page_source
+            error_msg = f"Unexpected error during navigation to {url}: {str(e)}"
+            self._logger.error(error_msg, exc_info=True)
+            raise NavigationError(error_msg) from e
     
     def get_current_url(self) -> str:
-        """Get the current URL."""
-        if self.driver is None:
-            raise BrowserError("Browser is not running")
-        return self.driver.current_url
+        """
+        Get the current URL of the active tab.
+        
+        Returns:
+            str: The current URL
+            
+        Raises:
+            BrowserError: If browser is not initialized or no window is open
+        """
+        if not self.driver:
+            raise BrowserNotInitializedError("Browser is not initialized")
+            
+        try:
+            if not self.driver.window_handles:
+                raise BrowserError("No browser windows are open")
+                
+            return self.driver.current_url
+            
+        except Exception as e:
+            error_msg = f"Failed to get current URL: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+            
+    def get_page_source(self) -> str:
+        """
+        Get the current page source.
+        
+        Returns:
+            str: The page source HTML
+            
+        Raises:
+            BrowserError: If browser is not initialized or no window is open
+        """
+        if not self.driver:
+            raise BrowserNotInitializedError("Browser is not initialized")
+            
+        try:
+            if not self.driver.window_handles:
+                raise BrowserError("No browser windows are open")
+                
+            return self.driver.page_source
+            
+        except Exception as e:
+            error_msg = f"Failed to get page source: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
     
     def take_screenshot(self, file_path: str, full_page: bool = False) -> bool:
         """Take a screenshot of the current page.

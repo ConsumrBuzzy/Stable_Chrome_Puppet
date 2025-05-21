@@ -14,7 +14,7 @@ The browser functionality has been refactored into a more modular and maintainab
 
 ## New Module Structure
 
-```
+```text
 core/browser/
 ├── __init__.py         # Package initialization and exports
 ├── base.py             # Base browser interface and utilities
@@ -29,28 +29,24 @@ core/browser/
 
 ### 1. Imports
 
-**Before:**
 ```python
+# Before:
 from core.browser import ChromePuppet
-```
 
-**After:**
-```python
+# After:
 from core.browser.chrome import ChromeBrowser
 ```
 
 ### 2. Browser Initialization
 
-**Before:**
 ```python
+# Before:
 from core.config import ChromeConfig
 
 config = ChromeConfig()
 browser = ChromePuppet(config)
-```
 
-**After:**
-```python
+# After:
 from core.config import ChromeConfig
 from core.browser import ChromeBrowser
 
@@ -60,14 +56,12 @@ browser = ChromeBrowser(config)
 
 ### 3. Element Interaction
 
-**Before:**
 ```python
+# Before:
 element = browser.find_element(By.ID, "my-element")
 element.click()
-```
 
-**After:**
-```python
+# After:
 element_helper = browser.element  # If element helper is exposed as property
 element = element_helper.find_element(By.ID, "my-element")
 element_helper.click(element=element)
@@ -79,13 +73,11 @@ element.click()
 
 ### 4. Navigation
 
-**Before:**
 ```python
+# Before:
 browser.navigate_to("https://example.com")
-```
 
-**After:**
-```python
+# After:
 browser.navigate_to("https://example.com")
 # Or using the navigation mixin directly if available
 browser.navigation.navigate_to("https://example.com")
@@ -93,13 +85,11 @@ browser.navigation.navigate_to("https://example.com")
 
 ### 5. Screenshots
 
-**Before:**
 ```python
+# Before:
 browser.take_screenshot("screenshot.png")
-```
 
-**After:**
-```python
+# After:
 browser.screenshot.take_screenshot("screenshot.png")
 ```
 
@@ -151,6 +141,7 @@ If you need to maintain backward compatibility, you can create a compatibility l
 ## Troubleshooting
 
 If you encounter any issues during migration:
+
 1. Check the error messages for hints about what needs to be updated.
 2. Refer to the module documentation for the new API.
 3. Look at the test cases for examples of how to use the new API.

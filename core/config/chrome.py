@@ -1,7 +1,7 @@
 """Chrome browser configuration."""
 from typing import Any, Dict, List, Optional, Tuple, Union
 from pathlib import Path
-from ...config.base import BrowserConfig
+from .base import BrowserConfig
 
 class ChromeConfig(BrowserConfig):
     """Chrome-specific browser configuration."""

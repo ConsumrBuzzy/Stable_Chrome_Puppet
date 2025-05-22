@@ -15,11 +15,13 @@ from .base import (
     ProfileConfig,
     ProxyConfig,
 )
+from .chrome import ChromeConfig
 
 __all__ = [
     'BaseConfig',
     'BrowserConfig',
     'BrowserType',
+    'ChromeConfig',
     'DriverConfig',
     'LogLevel',
     'PerformanceLoggingConfig',

@@ -18,7 +18,7 @@ def _import_config():
     """Lazy import for ChromeConfig and DEFAULT_CONFIG."""
     global ChromeConfig, DEFAULT_CONFIG
     if ChromeConfig is None or DEFAULT_CONFIG is None:
-        from core.browser.config import ChromeConfig as CC, DEFAULT_CONFIG as DC
+        from core.config import ChromeConfig as CC, DEFAULT_CONFIG as DC
         ChromeConfig = CC
         DEFAULT_CONFIG = DC
     return ChromeConfig, DEFAULT_CONFIG

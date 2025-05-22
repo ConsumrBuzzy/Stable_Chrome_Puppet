@@ -6,6 +6,8 @@ import logging
 from typing import List, Optional, Union
 from pathlib import Path
 from selenium.webdriver.chrome.service import Service as ChromeService
+from typing import Optional, Dict, Any, Union, List
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -111,3 +113,61 @@ class ChromeServiceManager:
     def __del__(self) -> None:
         """Ensure the service is stopped when the object is garbage collected."""
         self.stop()
+
+
+class ChromeServiceFactory:
+    """Factory for creating and managing Chrome service instances."""
+    
+    def __init__(self, config: Any) -> None:
+        """Initialize the service factory with the given configuration.
+        
+        Args:
+            config: Configuration object containing service settings.
+        """
+        self._config = config
+        self._service: Optional[ChromeService] = None
+    
+    def create_service(self) -> ChromeService:
+        """Create and return a configured ChromeService instance.
+        
+        Returns:
+            Configured ChromeService instance.
+            
+        Raises:
+            WebDriverException: If the service cannot be created.
+        """
+        service_args = self._get_service_args()
+        
+        self._service = ChromeService(
+            executable_path=self._config.chrome_driver_path,
+            service_args=service_args,
+            log_path=self._config.log_path
+        )
+        
+        return self._service
+    
+    def _get_service_args(self) -> List[str]:
+        """Get the service arguments from the configuration.
+        
+        Returns:
+            List of service arguments.
+        """
+        args = []
+        
+        if hasattr(self._config, 'service_args'):
+            args.extend(self._config.service_args)
+            
+        if hasattr(self._config, 'port') and self._config.port:
+            args.extend(['--port', str(self._config.port)])
+            
+        return args
+    
+    def stop_service(self) -> None:
+        """Stop the Chrome service if it's running."""
+        if self._service is not None:
+            try:
+                self._service.stop()
+            except Exception as e:
+                logging.warning(f"Error stopping Chrome service: {e}")
+            finally:
+                self._service = None

@@ -68,6 +68,15 @@ class Browser(BaseBrowser):
             self._driver_class = get_driver_class(browser_type)
             self._driver = self._driver_class(self._config, self._logger)
             self._driver.start()
+            
+            # Set the driver instance on the base class
+            if hasattr(self._driver, 'driver'):
+                # If the driver has a 'driver' attribute, use that
+                super().__setattr__('_driver_instance', self._driver.driver)
+            else:
+                # Otherwise use the driver itself
+                super().__setattr__('_driver_instance', self._driver)
+                
         except Exception as e:
             self._logger.error(f"Failed to initialize {browser_type} driver: {e}")
             if browser_type != 'chrome':
@@ -76,18 +85,22 @@ class Browser(BaseBrowser):
                     self._driver_class = get_driver_class('chrome')
                     self._driver = self._driver_class(self._config, self._logger)
                     self._driver.start()
+                    
+                    # Set the driver instance on the base class
+                    if hasattr(self._driver, 'driver'):
+                        super().__setattr__('_driver_instance', self._driver.driver)
+                    else:
+                        super().__setattr__('_driver_instance', self._driver)
+                        
                 except Exception as chrome_error:
                     self._logger.error(f"Failed to initialize Chrome driver: {chrome_error}")
+                    self._driver = None
                     raise BrowserError("Failed to initialize any browser driver") from chrome_error
             else:
+                self._driver = None
                 raise BrowserError(f"Failed to initialize {browser_type} driver") from e
             
         self._initialized = True
-        
-        # Set the driver on the base class
-        if self._driver is not None:
-            driver_instance = self._driver.driver if hasattr(self._driver, 'driver') else self._driver
-            object.__setattr__(self, 'driver', driver_instance)
     
     @property
     def driver(self) -> Any:
@@ -99,9 +112,9 @@ class Browser(BaseBrowser):
         Raises:
             BrowserNotInitializedError: If the browser is not initialized
         """
-        if self._driver is None:
+        if not hasattr(self, '_driver_instance') or self._driver_instance is None:
             raise BrowserNotInitializedError("Browser is not initialized. Call start() first.")
-        return self._driver.driver if hasattr(self._driver, 'driver') else self._driver
+        return self._driver_instance
         
     @driver.setter
     def driver(self, value: Any) -> None:
@@ -113,11 +126,11 @@ class Browser(BaseBrowser):
         Note:
             This is primarily for internal use. Prefer using the start() method.
         """
-        self._driver = value
-        # Ensure the base class's driver is in sync
         if value is not None:
             driver_instance = value.driver if hasattr(value, 'driver') else value
-            object.__setattr__(self, 'driver', driver_instance)
+            super().__setattr__('_driver_instance', driver_instance)
+        else:
+            super().__setattr__('_driver_instance', None)
     
     def start(self) -> None:
         """Start the browser.

@@ -7,10 +7,15 @@ including listing, validating, and selecting profiles.
 import json
 import logging
 import os
+import platform
+import shutil
 import sqlite3
+import sys
+import time
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Tuple, TypedDict
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, ClassVar, TypedDict
 
+# Configure logging
 logger = logging.getLogger(__name__)
 
 class ProfileInfo(TypedDict):
@@ -23,7 +28,22 @@ class ProfileInfo(TypedDict):
     display_name: Optional[str]
 
 class ProfileManager:
-    """Manages browser profiles and their configurations."""
+    """Manages browser profiles for Chrome-based browsers."""
+    
+    # Known Chrome user data directory locations
+    CHROME_DATA_DIRS: ClassVar[List[Path]] = [
+        # Windows default
+        Path(os.path.expandvars(r'%LOCALAPPDATA%\\Google\\Chrome\\User Data')),
+        Path(os.path.expandvars(r'%USERPROFILE%\\AppData\\Local\\Google\\Chrome\\User Data')),
+        # Common custom location
+        Path(r'C:\\Users\\cheat\\AppData\\Local\\Google\\Chrome\\User Data'),
+        # Linux
+        Path.home() / '.config/google-chrome',
+        Path.home() / '.config/chromium',
+        # macOS
+        Path.home() / 'Library/Application Support/Google/Chrome',
+        Path.home() / 'Library/Application Support/Chromium',
+    ]
     
     # System profiles that should be ignored
     IGNORED_PROFILES = ["System Profile", "Guest Profile"]

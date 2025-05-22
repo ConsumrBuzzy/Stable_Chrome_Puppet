@@ -7,11 +7,8 @@ import logging
 from pathlib import Path
 from typing import Generator, Any, Dict
 
-# Add parent directory to path to import our package
-sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
-
-from core.browser.drivers.chrome_driver import ChromeDriver
-from core.browser.config import ChromeConfig, DriverConfig
+# Import using the package's public API to avoid circular imports
+from core import ChromeDriver, ChromeConfig, DriverConfig
 from core.browser.exceptions import (
     BrowserError,
     BrowserNotInitializedError,

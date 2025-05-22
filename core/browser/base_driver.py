@@ -7,7 +7,7 @@ for all browser driver implementations.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, Optional, TypeVar
 
-from ..config import BrowserConfig
+from ..config import ChromeConfig
 
 T = TypeVar('T', bound='BaseDriver')
 
@@ -18,13 +18,13 @@ class BaseDriver(Generic[T], ABC):
     This class defines the common interface that all browser drivers must implement.
     """
     
-    def __init__(self, config: Optional[BrowserConfig] = None) -> None:
+    def __init__(self, config: Optional[ChromeConfig] = None) -> None:
         """Initialize the base driver with configuration.
         
         Args:
             config: Configuration for the browser instance.
         """
-        self.config = config or BrowserConfig()
+        self.config = config or ChromeConfig()
         self._driver: Any = None
         self._service: Any = None
         self._options: Any = None

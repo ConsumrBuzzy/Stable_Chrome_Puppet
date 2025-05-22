@@ -1,20 +1,30 @@
 """Chrome browser driver implementation."""
+import logging
 import os
-import sys
 import platform
 import shutil
 import struct
+import sys
 import zipfile
 import urllib.request
-import logging
 from pathlib import Path
-from typing import Optional, Any, Dict, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Type, TypeVar, Callable
 
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options as ChromeOptions
-from selenium.common.exceptions import WebDriverException, TimeoutException
+from selenium.webdriver.chrome.webdriver import WebDriver as ChromeWebDriver
+from selenium.common.exceptions import (
+    WebDriverException,
+    TimeoutException,
+    NoSuchElementException,
+    ElementNotInteractableException,
+    ElementClickInterceptedException,
+    StaleElementReferenceException,
+    WebDriverException
+)
 from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.utils import ChromeType
 
 from ..base import BaseBrowser
 from ..exceptions import (
@@ -29,7 +39,13 @@ from ..exceptions import (
 from ..features.element import ElementHelper
 from ..features.navigation import NavigationMixin
 from ..features.screenshot import ScreenshotHelper
-from . import register_driver, BaseBrowserDriver
+from . import register_driver, BaseBrowserDriver, DriverConfig
+
+# Type variable for generic typing
+T = TypeVar('T')
+
+# Type alias for WebDriver
+WebDriver = ChromeWebDriver
 
 
 @register_driver("chrome")
@@ -48,9 +64,9 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
             logger: Optional logger instance for logging
         """
         super().__init__(config, logger)
-        self.driver = None
-        self._service = None
-        self._options = None
+        self.driver: Optional[WebDriver] = None
+        self._service: Optional[ChromeService] = None
+        self._options: Optional[ChromeOptions] = None
         self._setup_options()
     
     @classmethod
@@ -66,24 +82,41 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
         """Set up Chrome options based on configuration."""
         self._options = ChromeOptions()
         
-        # Set headless mode if configured
-        if getattr(self.config, 'headless', False):
-            self._options.add_argument('--headless=new')
-        
-        # Set window size if specified
-        if hasattr(self.config, 'window_size'):
-            width, height = self.config.window_size
-            self._options.add_argument(f'--window-size={width},{height}')
-        
-        # Add additional Chrome arguments if provided
-        if hasattr(self.config, 'chrome_args'):
-            for arg in self.config.chrome_args:
+        # Add Chrome arguments from config
+        chrome_args = getattr(self.config, 'chrome_args', [])
+        for arg in chrome_args:
+            if arg not in self._options.arguments:
                 self._options.add_argument(arg)
         
-        # Set experimental options if provided
-        if hasattr(self.config, 'chrome_experimental_options'):
-            for key, value in self.config.chrome_experimental_options.items():
-                self._options.add_experimental_option(key, value)
+        # Add experimental options if provided
+        experimental_options = getattr(self.config, 'experimental_options', {})
+        for key, value in experimental_options.items():
+            self._options.add_experimental_option(key, value)
+        
+        # Set window size if specified
+        if hasattr(self.config, 'window_size') and self.config.window_size:
+            width, height = self.config.window_size
+            self._options.add_argument(f'--window-size={width},{height}')
+    
+    def _create_service(self) -> ChromeService:
+        """Create and configure the Chrome service.
+        
+        Returns:
+            ChromeService: Configured Chrome service instance
+        """
+        driver_config = getattr(self.config, 'driver_config', DriverConfig())
+        
+        # Set up service arguments
+        service_args = driver_config.service_args or []
+        
+        # Create service with configured options
+        service = ChromeService(
+            executable_path=driver_config.driver_path or ChromeDriverManager().install(),
+            service_args=service_args,
+            log_path=driver_config.service_log_path
+        )
+        
+        return service
     
     def start(self) -> None:
         """Start the Chrome browser."""
@@ -92,46 +125,67 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
             return
         
         try:
-            # Set up Chrome service
-            chrome_service = Service(ChromeDriverManager().install())
+            # Set up Chrome service and options
+            self._service = self._create_service()
             
             # Initialize Chrome WebDriver
-            self.driver = webdriver.Chrome(service=chrome_service, options=self._options)
+            self.driver = webdriver.Chrome(
+                service=self._service,
+                options=self._options
+            )
             
-            # Set implicit wait if specified
+            # Configure timeouts
             if hasattr(self.config, 'implicit_wait'):
                 self.driver.implicitly_wait(self.config.implicit_wait)
-            
-            # Set page load timeout if specified
+                
             if hasattr(self.config, 'page_load_timeout'):
                 self.driver.set_page_load_timeout(self.config.page_load_timeout)
-            
-            # Set script timeout if specified
+                
             if hasattr(self.config, 'script_timeout'):
                 self.driver.set_script_timeout(self.config.script_timeout)
-            
+                
             self.logger.info("Chrome browser started successfully")
             
         except Exception as e:
-            error_msg = f"Failed to start Chrome browser: {str(e)}"
-            self.logger.error(error_msg)
-            raise BrowserError(error_msg) from e
+            self.logger.error(f"Failed to start Chrome browser: {e}")
+            self._cleanup_resources()
+            raise BrowserError(f"Failed to start Chrome browser: {e}") from e
+            
+    def _cleanup_resources(self) -> None:
+        """Clean up any resources used by the browser."""
+        try:
+            if self._service:
+                self._service.stop()
+                self._service = None
+        except Exception as e:
+            self.logger.warning(f"Error cleaning up Chrome service: {e}")
     
     def stop(self) -> None:
-        """Stop the Chrome browser."""
+        """Stop the Chrome browser and clean up resources."""
         if self.driver is None:
-            self.logger.warning("No active browser session to stop")
             return
-        
+            
         try:
+            self.logger.info("Stopping Chrome browser...")
             self.driver.quit()
-            self.driver = None
-            self._service = None
-            self.logger.info("Browser stopped successfully")
+            self.logger.info("Chrome browser stopped")
         except Exception as e:
-            error_msg = f"Error while stopping browser: {str(e)}"
-            self.logger.error(error_msg)
-            raise BrowserError(error_msg) from e
+            self.logger.error(f"Error stopping Chrome browser: {e}")
+            raise
+        finally:
+            self.driver = None
+            self._cleanup_resources()
+    
+    def is_running(self) -> bool:
+        """Check if the browser is running.
+        
+        Returns:
+            bool: True if the browser is running, False otherwise
+        """
+        try:
+            return self.driver is not None and self.driver.service.is_connectable()
+        except Exception:
+            return False
     
     def __enter__(self):
         """Context manager entry."""
@@ -141,6 +195,14 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self.stop()
+    
+    def __getattr__(self, name):
+        """Delegate attribute access to the underlying driver."""
+        if self.driver is None:
+            raise BrowserNotInitializedError(
+                "Browser driver not initialized. Call start() first."
+            )
+        return getattr(self.driver, name)
     
     @property
     def current_url(self) -> str:

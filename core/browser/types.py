@@ -4,7 +4,7 @@ Type definitions for browser automation components.
 This module contains type hints and protocols used throughout the browser automation
 package to ensure type safety and improve code maintainability.
 """
-from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Protocol, Tuple, Union
 from pathlib import Path
 from enum import Enum, auto
 

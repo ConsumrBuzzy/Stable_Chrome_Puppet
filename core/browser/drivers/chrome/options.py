@@ -22,9 +22,10 @@ class ChromeOptionsBuilder:
         self._experimental_options: Dict[str, Any] = {}
         self._arguments: List[str] = []
         self._extensions: List[str] = []
-        self._window_size: Optional[WindowSize] = None
+        self._window_size: Optional[Tuple[int, int]] = None
         self._headless: bool = False
         self._user_agent: Optional[str] = None
+        self._logger = logging.getLogger(__name__)
         
         if config:
             self.from_config(config)
@@ -104,8 +105,8 @@ class ChromeOptionsBuilder:
             if not isinstance(width, int) or not isinstance(height, int) or width <= 0 or height <= 0:
                 raise ValueError("Width and height must be positive integers")
                 
-            # Set the window size
-            self._window_size = WindowSize(width, height)
+            # Store as a regular tuple to avoid typing issues
+            self._window_size = (width, height)
             self._arguments.append(f"--window-size={width},{height}")
             
             return self

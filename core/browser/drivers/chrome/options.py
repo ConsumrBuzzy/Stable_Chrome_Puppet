@@ -40,19 +40,24 @@ class ChromeOptionsBuilder:
         Returns:
             Self for method chaining.
         """
-        if config.headless:
+        # Handle headless mode
+        if hasattr(config, 'headless') and config.headless:
             self.set_headless()
             
-        if config.window_size:
+        # Set window size if provided
+        if hasattr(config, 'window_size') and config.window_size:
             self.set_window_size(config.window_size)
             
-        if config.user_agent:
+        # Set user agent if provided
+        if hasattr(config, 'user_agent') and config.user_agent:
             self.set_user_agent(config.user_agent)
             
-        if config.extra_args:
+        # Add extra arguments if they exist
+        if hasattr(config, 'extra_args') and config.extra_args:
             self.add_arguments(*config.extra_args)
             
-        if config.experimental_options:
+        # Add any experimental options
+        if hasattr(config, 'experimental_options') and config.experimental_options:
             for key, value in config.experimental_options.items():
                 self.set_experimental_option(key, value)
                 

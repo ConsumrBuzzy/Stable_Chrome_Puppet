@@ -62,7 +62,7 @@ class TestChromeDriver:
         )
 
     @pytest.fixture
-    def chrome_driver(self, chrome_config: ChromeConfig) -> Generator[ChromeDriver, None, None]:
+    def chrome_driver(self, chrome_config) -> 'Generator[ChromeDriver, None, None]':
         """Create and yield a ChromeDriver instance for testing."""
         ChromeDriver = get_chrome_driver()
         driver = ChromeDriver(config=chrome_config)

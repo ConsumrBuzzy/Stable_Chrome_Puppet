@@ -95,56 +95,63 @@ class ProfileManager:
             - email: Email associated with the profile (if any)
             - display_name: User-friendly name for the profile
             - last_modified: Timestamp of when the profile was last modified
+            - profile_type: Type of profile (user, development, system)
         """
         try:
             # Get basic file info
             stat_info = profile_path.stat()
             
+            # Initialize info with default values
             info = {
                 'name': profile_path.name,
-                'path': str(profile_path),
+                'path': str(profile_path.absolute()),
                 'size_mb': self._get_directory_size(profile_path) / (1024 * 1024),
                 'email': None,
                 'display_name': None,
-                'last_modified': stat_info.st_mtime
+                'last_modified': stat_info.st_mtime,
+                'profile_type': self._get_profile_type(profile_path.name)
             }
             
-            # Try to get profile name and email from preferences file
+            # Set a default display name based on the profile directory name
+            if profile_path.name == 'Default':
+                info['display_name'] = 'Default Profile'
+            elif profile_path.name.startswith('Profile '):
+                try:
+                    profile_num = int(profile_path.name.split(' ')[1])
+                    info['display_name'] = f'Profile {profile_num}'
+                except (IndexError, ValueError):
+                    info['display_name'] = profile_path.name
+            else:
+                info['display_name'] = profile_path.name
+            
+            # Try to get additional info from preferences file
             prefs_file = profile_path / 'Preferences'
-            if prefs_file.exists():
+            if prefs_file.exists() and prefs_file.stat().st_size > 0:
                 try:
                     with open(prefs_file, 'r', encoding='utf-8') as f:
                         prefs = json.load(f)
                         
-                    # Get email from sync account info
+                    # Get email and name from sync account info
                     if 'profile' in prefs and 'info_cache' in prefs['profile']:
                         for cache in prefs['profile']['info_cache'].values():
                             if 'email' in cache and cache['email']:
-                                info['email'] = cache['email']
-                            if 'name' in cache and cache['name'] and not info['display_name']:
-                                info['display_name'] = cache['name']
-                                
-                    # Get display name from profile info
-                    if not info['display_name'] and 'profile' in prefs:
-                        profile_name = prefs['profile'].get('name')
-                        if profile_name and not profile_name.startswith('Profile '):
-                            info['display_name'] = profile_name
+                                info['email'] = str(cache['email'])
+                            if 'name' in cache and cache['name'] and not info.get('display_name'):
+                                info['display_name'] = str(cache['name'])
                     
-                    # If we still don't have a display name, use a friendly version of the profile name
-                    if not info['display_name']:
-                        if profile_path.name == 'Default':
-                            info['display_name'] = 'Default Profile'
-                        elif profile_path.name.startswith('Profile '):
-                            try:
-                                profile_num = int(profile_path.name.split(' ')[1])
-                                info['display_name'] = f'Profile {profile_num}'
-                            except (IndexError, ValueError):
-                                info['display_name'] = profile_path.name
-                        else:
-                            info['display_name'] = profile_path.name
-                            
+                    # Get display name from profile info if not set yet
+                    if not info.get('display_name') and 'profile' in prefs:
+                        profile_name = prefs['profile'].get('name')
+                        if profile_name and not str(profile_name).startswith('Profile '):
+                            info['display_name'] = str(profile_name)
+                    
                 except Exception as e:
                     logger.debug(f"Error reading profile preferences for {profile_path.name}: {e}", exc_info=True)
+            
+            # Ensure all string fields are properly encoded
+            for field in ['name', 'display_name', 'email', 'path']:
+                if field in info and info[field] is not None:
+                    info[field] = str(info[field])
             
             return info
             
@@ -152,12 +159,13 @@ class ProfileManager:
             logger.warning(f"Error getting info for profile {profile_path.name}: {e}", exc_info=True)
             # Return basic info even if we can't read all details
             return {
-                'name': profile_path.name,
-                'path': str(profile_path),
+                'name': str(profile_path.name),
+                'path': str(profile_path.absolute()),
                 'size_mb': 0,
                 'email': None,
-                'display_name': profile_path.name,
-                'last_modified': 0
+                'display_name': str(profile_path.name),
+                'last_modified': 0,
+                'profile_type': self._get_profile_type(profile_path.name)
             }
     
     @staticmethod
@@ -183,28 +191,67 @@ class ProfileManager:
         self.profiles.clear()
         profiles_path = Path(self.user_data_dir)
         
+        logger.debug(f"Starting profile discovery in: {profiles_path}")
+        
         if not profiles_path.exists():
-            logger.warning(f"Chrome user data directory not found: {profiles_path}")
+            error_msg = f"Chrome user data directory not found: {profiles_path}"
+            logger.error(error_msg)
+            print(f"\nERROR: {error_msg}")
             return
         
-        # Find all profile directories
-        for item in profiles_path.iterdir():
-            # Skip special directories
-            if item.name in ['.', '..'] or item.name in self.IGNORED_PROFILES:
-                continue
-                
-            # Check if this is a profile directory
-            if self._is_profile_directory(item):
+        try:
+            # List all items in the directory for debugging
+            dir_contents = list(profiles_path.iterdir())
+            logger.debug(f"Found {len(dir_contents)} items in {profiles_path}")
+            
+            # Find all profile directories
+            for item in dir_contents:
                 try:
-                    profile_info = self._get_profile_info(item)
-                    profile_info['profile_type'] = self._get_profile_type(item.name)
-                    self.profiles[item.name] = profile_info
-                    logger.debug(f"Found profile: {item.name} (type: {profile_info['profile_type']})")
+                    # Skip special directories and ignored profiles
+                    if item.name in ['.', '..'] or item.name in self.IGNORED_PROFILES:
+                        logger.debug(f"Skipping ignored item: {item.name}")
+                        continue
+                        
+                    logger.debug(f"Checking item: {item.name} (is_dir: {item.is_dir()})")
+                    
+                    # Check if this is a profile directory
+                    if self._is_profile_directory(item):
+                        logger.debug(f"Processing profile directory: {item.name}")
+                        try:
+                            profile_info = self._get_profile_info(item)
+                            profile_type = self._get_profile_type(item.name)
+                            profile_info['profile_type'] = profile_type
+                            self.profiles[item.name] = profile_info
+                            
+                            logger.info(f"Found {profile_type} profile: {item.name} "
+                                     f"(display_name: {profile_info.get('display_name', 'N/A')}, "
+                                     f"email: {profile_info.get('email', 'N/A')})")
+                            
+                        except Exception as e:
+                            logger.error(f"Error getting info for profile {item.name}: {str(e)}", exc_info=True)
+                            # Add basic profile info even if we can't get all details
+                            self.profiles[item.name] = {
+                                'name': item.name,
+                                'path': str(item.absolute()),
+                                'profile_type': self._get_profile_type(item.name),
+                                'display_name': item.name,
+                                'size_mb': 0,
+                                'last_modified': 0
+                            }
+                    else:
+                        logger.debug(f"Skipping non-profile directory: {item.name}")
+                        
                 except Exception as e:
-                    logger.warning(f"Error processing profile {item.name}: {e}", exc_info=True)
-        
-        # Log summary of found profiles
-        logger.debug(f"Discovered {len(self.profiles)} profiles: {', '.join(self.profiles.keys())}")
+                    logger.error(f"Unexpected error processing {item.name}: {str(e)}", exc_info=True)
+            
+            # Log summary of found profiles
+            logger.info(f"Discovered {len(self.profiles)} profiles in {profiles_path}")
+            for profile_name, profile in self.profiles.items():
+                logger.debug(f"- {profile_name}: {profile}")
+                
+        except Exception as e:
+            logger.critical(f"Fatal error during profile discovery: {str(e)}", exc_info=True)
+            print(f"\nFATAL ERROR: Failed to discover profiles: {str(e)}")
     
     def list_profiles(self, profile_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """List all available profiles, optionally filtered by type.

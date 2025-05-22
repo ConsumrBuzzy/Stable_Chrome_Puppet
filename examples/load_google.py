@@ -8,33 +8,61 @@ import sys
 import logging
 import argparse
 from pathlib import Path
+from datetime import datetime
 from typing import Optional, Dict, Any
 
 # Add parent directory to path to allow importing from core
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.browser.drivers.chrome import ChromeBrowser
-from core.browser.profile_manager import ProfileManager, select_profile_interactive
+from core.browser.profile_manager import ProfileManager, select_profile_interactive, format_size
 from core.config import ChromeConfig
 
 def setup_logging(verbose: bool = False) -> None:
-    """Configure logging for the application.
+    """Set up logging configuration.
     
     Args:
         verbose: If True, set log level to DEBUG
     """
-    log_level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler()
-        ]
-    )
+    # Always use DEBUG level for our logger
+    log_level = logging.DEBUG
     
-    # Reduce logging from Selenium and other libraries
-    logging.getLogger('selenium').setLevel(logging.WARNING)
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    # Create console handler with a higher log level
+    console = logging.StreamHandler()
+    console.setLevel(log_level if verbose else logging.INFO)
+    console.setFormatter(formatter)
+    
+    # Create file handler which logs debug messages
+    file_handler = logging.FileHandler('chrome_puppet.log', mode='w')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    
+    # Get the root logger and add handlers
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    
+    # Clear any existing handlers
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Add the handlers
+    root_logger.addHandler(console)
+    root_logger.addHandler(file_handler)
+    
+    # Set specific log levels for noisy libraries
     logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('selenium').setLevel(logging.WARNING)
+    logging.getLogger('webdriver_manager').setLevel(logging.WARNING)
+    
+    # Enable our own debug logging
+    logging.getLogger('core.browser').setLevel(logging.DEBUG)
+    logging.getLogger('core.browser.profile_manager').setLevel(logging.DEBUG)
+    
+    logger = logging.getLogger(__name__)
+    logger.debug("Logging initialized with debug level")
 
 def main():
     """Main entry point for the script."""
@@ -62,67 +90,37 @@ def main():
         # List profiles only if requested
         if args.list_profiles:
             print("\n" + "="*80)
-            print("CHROME PROFILE MANAGER")
+            print("CHROME PROFILES".center(80))
             print("="*80)
             
-            # Get profiles based on filter if provided
-            if args.profile_type:
-                profiles = profile_manager.list_profiles(profile_type=args.profile_type)
-                if not profiles:
-                    print(f"\nNo {args.profile_type} profiles found.")
+            try:
+                # Get all profiles
+                all_profiles = profile_manager.list_profiles()
+                
+                if not all_profiles:
+                    print("\nNo Chrome profiles found!")
                     return
-            else:
-                profiles = profile_manager.list_profiles()
-            
-            # Sort profiles by type and name
-            def get_profile_sort_key(p):
-                profile_type = p.get('profile_type', 'user')
-                type_order = {'user': 0, 'development': 1, 'system': 2}.get(profile_type, 3)
-                return (type_order, p.get('display_name', '').lower())
-            
-            profiles.sort(key=get_profile_sort_key)
-            
-            # Print summary header
-            print(f"\n{'#':>3}  {'Profile Name':<30} {'Email':<30} {'Size':>10}")
-            print("-" * 80)
-            
-            # Print each profile in the list
-            for i, profile in enumerate(profiles, 1):
-                display_name = profile.get('display_name', profile['name'])
-                if len(display_name) > 28:
-                    display_name = display_name[:25] + '...'
                     
-                email = profile.get('email', '')
-                if email and len(email) > 28:
-                    email = email[:25] + '...'
-                    
-                size = format_size(profile.get('size_mb', 0))
-                print(f"{i:3d}. {display_name:<30} {email:<30} {size:>10}")
-            
-            # Print detailed information for each profile
-            print("\n" + "="*80)
-            print("DETAILED PROFILE INFORMATION")
-            print("="*80)
-            
-            for i, profile in enumerate(profiles, 1):
-                print(f"\n[{i}] {profile.get('display_name', profile['name'])}")
+                # Print basic profile list
+                print("\nAvailable Profiles:")
                 print("-" * 80)
                 
-                # Basic info
-                print(f"Name:    {profile.get('display_name', profile['name'])}")
-                if 'email' in profile and profile['email']:
-                    print(f"Email:   {profile['email']}")
-                print(f"Type:    {profile.get('profile_type', 'user').title()}")
-                print(f"Path:    {profile['path']}")
-                print(f"Size:    {format_size(profile.get('size_mb', 0))}")
+                for i, profile in enumerate(all_profiles, 1):
+                    name = str(profile.get('display_name', profile.get('name', 'Unnamed')))
+                    email = str(profile.get('email', ''))
+                    ptype = profile.get('profile_type', 'user').title()
+                    size = format_size(profile.get('size_mb', 0))
+                    
+                    print(f"{i:2d}. {name:<30} {email:<30} {ptype:<12} {size}")
                 
-                # Last modified time if available
-                if 'last_modified' in profile and profile['last_modified']:
-                    from datetime import datetime
-                    mod_time = datetime.fromtimestamp(profile['last_modified'])
-                    print(f"Updated: {mod_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                # Print summary
+                print("\n" + "="*80)
+                print(f"Found {len(all_profiles)} profiles")
+                
+            except Exception as e:
+                print(f"\nError listing profiles: {e}")
+                logger.exception("Error in profile listing:")
             
-            print(f"\nTotal profiles found: {len(profiles)}")
             return
         
         # Get profile to use

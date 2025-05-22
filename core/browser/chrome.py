@@ -58,20 +58,6 @@ class ChromeBrowser(BaseBrowser):
         if self._driver is None:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
         return getattr(self._driver, name)
-        self._service = None
-        self._is_running = False
-        self._logger = logger or logging.getLogger(__name__)
-
-    def _get_chrome_version(self) -> Optional[str]:
-        """Detect installed Chrome version.
-        
-        Returns:
-            Optional[str]: Chrome version string or None if not found
-        """
-        try:
-            if platform.system() == "Windows":
-                import winreg
-                with winreg.OpenKey(
                     winreg.HKEY_CURRENT_USER,
                     r"Software\Google\Chrome\BLBeacon"
                 ) as key:

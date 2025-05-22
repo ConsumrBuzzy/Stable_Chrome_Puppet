@@ -88,39 +88,77 @@ class ProfileManager:
             profile_path: Path to the profile directory
             
         Returns:
-            Dict containing profile information
+            Dict containing profile information with the following keys:
+            - name: The directory name of the profile
+            - path: Full path to the profile directory
+            - size_mb: Size of the profile in MB
+            - email: Email associated with the profile (if any)
+            - display_name: User-friendly name for the profile
+            - last_modified: Timestamp of when the profile was last modified
         """
-        info = {
-            'name': profile_path.name,
-            'path': str(profile_path),
-            'size_mb': self._get_directory_size(profile_path) / (1024 * 1024),
-            'email': None,
-            'display_name': None
-        }
-        
-        # Try to get profile name and email from preferences file
-        prefs_file = profile_path / 'Preferences'
-        if prefs_file.exists():
-            try:
-                with open(prefs_file, 'r', encoding='utf-8') as f:
-                    prefs = json.load(f)
+        try:
+            # Get basic file info
+            stat_info = profile_path.stat()
+            
+            info = {
+                'name': profile_path.name,
+                'path': str(profile_path),
+                'size_mb': self._get_directory_size(profile_path) / (1024 * 1024),
+                'email': None,
+                'display_name': None,
+                'last_modified': stat_info.st_mtime
+            }
+            
+            # Try to get profile name and email from preferences file
+            prefs_file = profile_path / 'Preferences'
+            if prefs_file.exists():
+                try:
+                    with open(prefs_file, 'r', encoding='utf-8') as f:
+                        prefs = json.load(f)
+                        
+                    # Get email from sync account info
+                    if 'profile' in prefs and 'info_cache' in prefs['profile']:
+                        for cache in prefs['profile']['info_cache'].values():
+                            if 'email' in cache and cache['email']:
+                                info['email'] = cache['email']
+                            if 'name' in cache and cache['name'] and not info['display_name']:
+                                info['display_name'] = cache['name']
+                                
+                    # Get display name from profile info
+                    if not info['display_name'] and 'profile' in prefs:
+                        profile_name = prefs['profile'].get('name')
+                        if profile_name and not profile_name.startswith('Profile '):
+                            info['display_name'] = profile_name
                     
-                # Get email from sync account info
-                if 'profile' in prefs and 'info_cache' in prefs['profile']:
-                    for cache in prefs['profile']['info_cache'].values():
-                        if 'email' in cache:
-                            info['email'] = cache['email']
-                        if 'name' in cache and not info['display_name']:
-                            info['display_name'] = cache['name']
+                    # If we still don't have a display name, use a friendly version of the profile name
+                    if not info['display_name']:
+                        if profile_path.name == 'Default':
+                            info['display_name'] = 'Default Profile'
+                        elif profile_path.name.startswith('Profile '):
+                            try:
+                                profile_num = int(profile_path.name.split(' ')[1])
+                                info['display_name'] = f'Profile {profile_num}'
+                            except (IndexError, ValueError):
+                                info['display_name'] = profile_path.name
+                        else:
+                            info['display_name'] = profile_path.name
                             
-                # Get display name from profile info
-                if not info['display_name'] and 'profile' in prefs:
-                    info['display_name'] = prefs['profile'].get('name')
-                    
-            except Exception as e:
-                logger.debug(f"Error reading profile preferences: {e}")
-        
-        return info
+                except Exception as e:
+                    logger.debug(f"Error reading profile preferences for {profile_path.name}: {e}", exc_info=True)
+            
+            return info
+            
+        except Exception as e:
+            logger.warning(f"Error getting info for profile {profile_path.name}: {e}", exc_info=True)
+            # Return basic info even if we can't read all details
+            return {
+                'name': profile_path.name,
+                'path': str(profile_path),
+                'size_mb': 0,
+                'email': None,
+                'display_name': profile_path.name,
+                'last_modified': 0
+            }
     
     @staticmethod
     def _get_directory_size(path: Path) -> int:

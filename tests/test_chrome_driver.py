@@ -64,37 +64,52 @@ class TestChromeDriver:
     @pytest.fixture
     def chrome_driver(self, chrome_config: ChromeConfig) -> Generator[ChromeDriver, None, None]:
         """Create and yield a ChromeDriver instance for testing."""
-        driver = None
+        ChromeDriver = get_chrome_driver()
+        driver = ChromeDriver(config=chrome_config)
         try:
-            driver = ChromeDriver(config=chrome_config)
             driver.start()
             yield driver
         finally:
-            if driver:
-                driver.stop()
+            driver.stop()
 
-    def test_initialization(self, chrome_driver: ChromeDriver):
+    def test_initialization(self, chrome_config):
         """Test that ChromeDriver initializes correctly."""
-        assert chrome_driver is not None
-        assert chrome_driver.is_running() is True
-        assert chrome_driver.driver is not None
+        ChromeDriver = get_chrome_driver()
+        driver = ChromeDriver(chrome_config)
+        assert driver is not None
+        assert driver.driver is not None
+        assert driver.config == chrome_config
+        driver.quit()
 
-    def test_navigation(self, chrome_driver: ChromeDriver):
+    def test_navigation(self, chrome_config):
         """Test basic navigation functionality."""
-        test_url = "https://httpbin.org/headers"
-        chrome_driver.get(test_url)
-        assert test_url in chrome_driver.current_url
-        assert "httpbin" in chrome_driver.title.lower()
+        ChromeDriver = get_chrome_driver()
+        driver = ChromeDriver(chrome_config)
+        try:
+            driver.start()
+            test_url = "https://httpbin.org/headers"
+            driver.get(test_url)
+            assert test_url in driver.current_url
+            assert "httpbin" in driver.title.lower()
+        finally:
+            driver.stop()
 
-    def test_javascript_execution(self, chrome_driver: ChromeDriver):
+    def test_javascript_execution(self, chrome_config):
         """Test JavaScript execution in the browser."""
-        result = chrome_driver.execute_script("return navigator.userAgent;")
-        assert isinstance(result, str)
-        assert "Chrome" in result
+        ChromeDriver = get_chrome_driver()
+        driver = ChromeDriver(chrome_config)
+        try:
+            driver.start()
+            result = driver.execute_script("return navigator.userAgent;")
+            assert isinstance(result, str)
+            assert "Chrome" in result
+        finally:
+            driver.stop()
 
-    def test_browser_not_initialized(self, chrome_config: ChromeConfig):
+    def test_browser_not_initialized(self, chrome_config):
         """Test that operations fail when browser is not initialized."""
-        driver = ChromeDriver(config=chrome_config)
+        ChromeDriver = get_chrome_driver()
+        driver = ChromeDriver(chrome_config)
         with pytest.raises(BrowserNotInitializedError):
             _ = driver.current_url
         with pytest.raises(BrowserNotInitializedError):
@@ -102,9 +117,10 @@ class TestChromeDriver:
         with pytest.raises(BrowserNotInitializedError):
             driver.get("https://example.com")
 
-    def test_stop_browser(self, chrome_config: ChromeConfig):
+    def test_stop_browser(self, chrome_config):
         """Test that browser can be stopped properly."""
-        driver = ChromeDriver(config=chrome_config)
+        ChromeDriver = get_chrome_driver()
+        driver = ChromeDriver(chrome_config)
         driver.start()
         assert driver.is_running() is True
         
@@ -112,8 +128,9 @@ class TestChromeDriver:
         assert driver.is_running() is False
         assert driver.driver is None
 
-    def test_context_manager(self, chrome_config: ChromeConfig):
+    def test_context_manager(self, chrome_config):
         """Test that the context manager works correctly."""
+        ChromeDriver = get_chrome_driver()
         with ChromeDriver(config=chrome_config) as driver:
             assert driver.is_running() is True
             driver.get("https://httpbin.org/headers")

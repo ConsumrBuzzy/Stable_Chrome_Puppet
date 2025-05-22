@@ -52,8 +52,19 @@ class BrowserConfig:
 
 @dataclass
 class ChromeConfig(BrowserConfig):
-    """Chrome-specific browser configuration."""
+    """Chrome-specific browser configuration.
+    
+    Attributes:
+        user_data_dir: Path to the Chrome user data directory (e.g., 'C:\\Users\\username\\AppData\\Local\\Google\\Chrome\\User Data')
+        profile_directory: Name of the profile directory inside user_data_dir (e.g., 'Profile 1' or 'Default')
+        use_existing_profile: Whether to use an existing Chrome profile (True) or create a temporary one (False)
+        chrome_args: Additional Chrome command line arguments
+        experimental_options: Chrome experimental options
+    """
     browser_type: str = 'chrome'
+    user_data_dir: Optional[str] = None
+    profile_directory: Optional[str] = None
+    use_existing_profile: bool = False
     chrome_args: List[str] = field(default_factory=list)
     experimental_options: Dict[str, Any] = field(default_factory=dict)
     
@@ -71,11 +82,21 @@ class ChromeConfig(BrowserConfig):
             '--disable-dev-shm-usage',
             '--disable-gpu',
             '--disable-extensions',
-            '--disable-software-rasterizer'
+            '--disable-software-rasterizer',
+            '--remote-debugging-port=0',  # Use any available port
+            '--no-first-run',
+            '--no-default-browser-check'
         ]
         
+        if self.use_existing_profile and self.user_data_dir:
+            # When using an existing profile, we need to ensure Chrome doesn't show the profile picker
+            common_args.extend([
+                f'--user-data-dir={self.user_data_dir}',
+                f'--profile-directory={self.profile_directory or "Default"}'
+            ])
+        
         for arg in common_args:
-            if arg not in self.chrome_args:
+            if arg.split('=')[0] not in [a.split('=')[0] for a in self.chrome_args]:
                 self.chrome_args.append(arg)
 
 

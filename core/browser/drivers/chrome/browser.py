@@ -16,7 +16,7 @@ from selenium.common.exceptions import (
 )
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.chrome.webdriver import WebDriver as ChromeWebDriver, WebDriver as SeleniumChrome
+from selenium.webdriver.chrome.webdriver import WebDriver as ChromeWebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.remote.shadowroot import ShadowRoot
@@ -134,7 +134,7 @@ class ChromeBrowser(BaseBrowser):
             self._service = service_factory.create_service()
             
             self._logger.info("Starting Chrome browser")
-            self._driver = SeleniumChrome(
+            self._driver = ChromeWebDriver(
                 service=self._service,
                 options=self._options
             )

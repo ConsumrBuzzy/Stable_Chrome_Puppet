@@ -133,9 +133,12 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
             common_args.extend(isolation_args)
         
         # Add all arguments to options
+        existing_args = [arg.split('=')[0] for arg in self._options.arguments]
         for arg in common_args + chrome_args:
-            if arg.split('=')[0] not in [a.split('=')[0] for a in self._options.arguments]:
+            arg_name = arg.split('=')[0]
+            if arg_name not in existing_args:
                 self._options.add_argument(arg)
+                existing_args.append(arg_name)
         
         # Handle user data directory and profile
         if getattr(self.config, 'use_existing_profile', False) and getattr(self.config, 'user_data_dir', None):

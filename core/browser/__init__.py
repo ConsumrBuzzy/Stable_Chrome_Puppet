@@ -37,16 +37,13 @@ __version__ = '0.2.0'
 
 # Define what gets imported with 'from browser import *'
 __all__ = [
-    # Browser implementation
+    # Browser implementations
     'BaseBrowser',
-    'ChromeDriver',
-    'get_chrome_driver',
+    'ChromeBrowser',
+    'Browser',  # Alias for ChromeBrowser for backward compatibility
+    'BaseBrowserDriver',
     
     # Core components
-    'ElementHelper',
-    'NavigationMixin',
-    'ScreenshotHelper',
-    'wait_for_page_load',
     'retry_on_failure',
     
     # Exceptions

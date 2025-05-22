@@ -138,10 +138,14 @@ class ChromeServiceFactory:
         """
         service_args = self._get_service_args()
         
+        # Get the chrome_driver_path if it exists, otherwise let ChromeDriverManager handle it
+        chrome_driver_path = getattr(self._config, 'chrome_driver_path', None)
+        log_path = getattr(self._config, 'log_path', None)
+        
         self._service = ChromeService(
-            executable_path=self._config.chrome_driver_path,
+            executable_path=chrome_driver_path,
             service_args=service_args,
-            log_path=self._config.log_path
+            log_path=log_path
         )
         
         return self._service

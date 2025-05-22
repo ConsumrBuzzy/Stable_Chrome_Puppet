@@ -14,14 +14,14 @@ from selenium.webdriver.support.ui import WebDriverWait
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
 from core.browser.exceptions import BrowserError, NavigationError, ElementNotFoundError, ElementNotInteractableError, TimeoutError
-from core.config import ChromeConfig
+from core.browser.config import ChromeConfig
 from tests.base_test import BaseTest
 
 # Mark all tests in this module as browser tests
-pytestmark = [pytest.mark.browser]
+pytestmark = [pytest.mark.browser, pytest.mark.driver]
 
-class TestChromeBrowser(BaseTest):
-    """Test cases for ChromeBrowser class."""
+class TestChromeDriver(BaseTest):
+    """Test cases for ChromeDriver class."""
     
     def test_browser_initialization(self, browser):
         """Test that the browser initializes correctly."""

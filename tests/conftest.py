@@ -16,8 +16,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
-from core.config import ChromeConfig
-from core.browser.chrome import ChromeBrowser
+from core.browser.config import ChromeConfig, DriverConfig
+from core.browser.drivers.chrome_driver import ChromeDriver
 
 # Set up test directories
 TEST_DIR = Path(__file__).parent
@@ -36,29 +36,29 @@ TEST_BASE_URL = f"http://{TEST_HOST}:{TEST_PORT}"
 @pytest.fixture(scope="session")
 def chrome_config() -> ChromeConfig:
     """Create a ChromeConfig for testing."""
-    config = ChromeConfig(
+    return ChromeConfig(
         headless=True,  # Run in headless mode for CI
         window_size=(1280, 1024),
-        implicit_wait=10
+        implicit_wait=10,
+        chrome_args=[
+            '--disable-notifications',
+            '--disable-infobars',
+            '--disable-gpu',
+            '--no-sandbox',
+            '--disable-dev-shm-usage'
+        ],
+        driver_config=DriverConfig(
+            service_log_path=str(SCREENSHOT_DIR / 'chromedriver.log')
+        )
     )
-    # Set screenshot directory in chrome options if needed
-    config.chrome_options['prefs'] = {
-        'download.default_directory': str(SCREENSHOT_DIR),
-        'download.prompt_for_download': False,
-        'download.directory_upgrade': True,
-        'safebrowsing.enabled': True
-    }
-    return config
 
 @pytest.fixture
-def browser(chrome_config: ChromeConfig) -> Generator[ChromeBrowser, None, None]:
+def browser(chrome_config: ChromeConfig) -> ChromeDriver:
     """Create a Chrome browser instance for testing."""
-    browser = ChromeBrowser(chrome_config)
+    browser = ChromeDriver(config=chrome_config)
     browser.start()
-    try:
-        yield browser
-    finally:
-        browser.stop()
+    yield browser
+    browser.stop()
 
 @pytest.fixture
 def test_page_url() -> str:

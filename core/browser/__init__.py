@@ -40,7 +40,7 @@ Module Structure:
 
 # Import key components to make them available at the package level
 from .base import BaseBrowser, retry_on_failure
-from .chrome import ChromeBrowser
+from .drivers.chrome_driver import ChromeDriver
 from .element import ElementHelper
 from .navigation import NavigationMixin, wait_for_page_load
 from .screenshot import ScreenshotHelper

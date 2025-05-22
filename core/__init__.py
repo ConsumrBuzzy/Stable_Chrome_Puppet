@@ -4,11 +4,11 @@ Core functionality for Chrome Puppet.
 This module provides the main browser automation capabilities for Chrome Puppet.
 """
 
-from .browser.chrome import ChromeBrowser
-from .config import ChromeConfig, DEFAULT_CONFIG
+from .browser.drivers.chrome_driver import ChromeDriver
+from .browser.config import ChromeConfig, DEFAULT_CONFIG
 
 __all__ = [
-    'ChromeBrowser',
+    'ChromeDriver',
     'ChromeConfig',
     'DEFAULT_CONFIG',
 ]

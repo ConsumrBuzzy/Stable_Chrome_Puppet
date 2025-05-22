@@ -10,9 +10,9 @@ from typing import Dict, Any, Optional, Tuple, Union
 # Add parent directory to path to import our package
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
-# Import ChromePuppet and ChromeConfig using absolute imports
-from core.browser.puppet import ChromePuppet
-from core.config import ChromeConfig
+# Import ChromeDriver and ChromeConfig using absolute imports
+from core.browser.drivers.chrome_driver import ChromeDriver
+from core.browser.config import ChromeConfig, DriverConfig
 
 class BaseTest(unittest.TestCase):
     """Base test class with common setup and teardown."""
@@ -45,29 +45,37 @@ class BaseTest(unittest.TestCase):
             ]
         }
     
-    def create_browser(self, config: Optional[Dict[str, Any]] = None) -> ChromePuppet:
+    def create_browser(self, config: Optional[Dict[str, Any]] = None) -> ChromeDriver:
         """Create a new browser instance with the given configuration.
         
         Args:
-            config: Optional configuration overrides
+            config: Optional configuration dictionary. If not provided, uses default_config.
             
         Returns:
-            ChromePuppet: Configured browser instance
+            ChromeDriver: Configured browser instance
         """
-        # Merge default config with any overrides
-        final_config = self.default_config.copy()
-        if config:
-            final_config.update(config)
+        if config is None:
+            config = self.default_config
+            
+        # Merge with default config
+        merged_config = {**self.default_config, **config}
         
-        # Create and return the browser
-        chrome_config = ChromeConfig(**final_config)
-        return ChromePuppet(config=chrome_config)
+        # Create ChromeConfig with driver config
+        chrome_config = ChromeConfig(
+            headless=merged_config['headless'],
+            window_size=merged_config['window_size'],
+            chrome_args=merged_config['chrome_arguments'],
+            driver_config=DriverConfig()
+        )
+        
+        # Create and return browser instance
+        return ChromeDriver(chrome_config)
     
     def assertElementPresent(self, browser, by, value, timeout=10):
         """Assert that an element is present on the page.
         
         Args:
-            browser: ChromePuppet instance
+            browser: ChromeDriver instance
             by: Selenium locator strategy (e.g., By.ID, By.CLASS_NAME)
             value: Locator value
             timeout: Maximum time to wait in seconds

@@ -1,13 +1,14 @@
-llow"""Browser module providing a generic interface for browser automation.
+"""Browser module providing a generic interface for browser automation.
 
 This module provides a high-level interface for browser automation with support
-for multiple browser backends, defaulting to Chrome.
+for multiple browser backends through a driver-based architecture.
 """
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Type, Union
 
-from .drivers import get_driver_class
+from .drivers import get_driver_class, BaseBrowserDriver
 from .base import BaseBrowser
+from .exceptions import BrowserError, BrowserNotInitializedError
 
 
 class Browser(BaseBrowser):
@@ -31,19 +32,27 @@ class Browser(BaseBrowser):
             
         super().__init__(config, logger)
         self._driver = None
+        self._driver_class: Optional[Type[BaseBrowserDriver]] = None
         self._initialize_driver()
     
     def _initialize_driver(self) -> None:
         """Initialize the browser driver based on configuration."""
         browser_type = getattr(self.config, 'browser_type', 'chrome').lower()
         try:
-            driver_class = get_driver_class(browser_type)
-            self._driver = driver_class(self.config, self.logger)
+            self._driver_class = get_driver_class(browser_type)
+            self._driver = self._driver_class(self.config, self.logger)
         except ValueError as e:
             self.logger.warning(f"Falling back to Chrome: {e}")
             # Fall back to Chrome if the configured browser is not available
-            driver_class = get_driver_class('chrome')
-            self._driver = driver_class(self.config, self.logger)
+            self._driver_class = get_driver_class('chrome')
+            self._driver = self._driver_class(self.config, self.logger)
+    
+    @property
+    def driver(self) -> Any:
+        """Get the underlying driver instance."""
+        if self._driver is None:
+            raise BrowserNotInitializedError("Browser driver not initialized. Call start() first.")
+        return self._driver.driver if hasattr(self._driver, 'driver') else self._driver
     
     def start(self) -> None:
         """Start the browser."""
@@ -52,9 +61,14 @@ class Browser(BaseBrowser):
         self._driver.start()
     
     def stop(self) -> None:
-        """Stop the browser."""
+        """Stop the browser and clean up resources."""
         if self._driver is not None:
-            self._driver.stop()
+            try:
+                self._driver.stop()
+            except Exception as e:
+                self.logger.error(f"Error stopping browser: {e}")
+            finally:
+                self._driver = None
     
     def __enter__(self):
         """Context manager entry."""

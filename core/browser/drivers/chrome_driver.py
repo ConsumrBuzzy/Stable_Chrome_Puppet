@@ -85,21 +85,49 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
         # Get Chrome arguments from config or use defaults
         chrome_args = getattr(self.config, 'chrome_args', [])
         
-        # Default Chrome arguments for better stability and to suppress warnings
-        default_args = [
-            '--disable-gpu',  # Disable GPU hardware acceleration
-            '--log-level=3',  # Suppress most console logs
-            '--no-sandbox',
-            '--disable-dev-shm-usage',  # Overcome limited resource problems
-            '--disable-software-rasterizer',
-            '--remote-debugging-port=0',  # Use any available port
+        # Add common Chrome arguments
+        common_args = [
             '--no-first-run',
             '--no-default-browser-check',
-            '--password-store=basic',  # Required for password manager
-            '--use-mock-keychain',  # Prevents keychain access prompts on macOS
-            '--allow-profiles-outside-user-dir',
-            '--enable-profile-shortcut-manager'
+            '--disable-blink-features=AutomationControlled',
+            '--password-store=basic',  # Use basic password store to prevent keychain prompts
+            '--disable-notifications',
+            '--disable-infobars',
+            '--disable-gpu',
+            '--disable-software-rasterizer',
+            '--disable-dev-shm-usage',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-web-security',
+            '--allow-running-insecure-content',
+            '--disable-client-side-phishing-detection',
+            '--disable-component-update',
+            '--disable-default-apps',
+            '--disable-hang-monitor',
+            '--disable-popup-blocking',
+            '--disable-sync',
+            '--metrics-recording-only',
+            '--no-zygote',
+            '--safebrowsing-disable-auto-update',
+            '--use-mock-keychain',
+            '--remote-debugging-port=0',
+            # Important: These flags prevent interference with existing Chrome instances
+            '--no-startup-window',
+            '--no-sandbox',
+            '--disable-background-networking',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-breakpad',
+            '--disable-component-extensions-with-background-pages',
+            '--disable-ipc-flooding-protection',
+            '--disable-renderer-backgrounding',
+            f'--window-size={self.config.window_size[0]},{self.config.window_size[1]}',
         ]
+        
+        # Add all arguments to options
+        for arg in common_args + chrome_args:
+            if arg.split('=')[0] not in [a.split('=')[0] for a in self._options.arguments]:
+                self._options.add_argument(arg)
         
         # Handle user data directory and profile
         if getattr(self.config, 'use_existing_profile', False) and getattr(self.config, 'user_data_dir', None):

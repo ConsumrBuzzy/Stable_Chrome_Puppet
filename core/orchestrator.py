@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-from .browser import ChromePuppet
+from .drivers.chrome import ChromeBrowser
 from .config import ChromeConfig, DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)

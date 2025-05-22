@@ -22,15 +22,14 @@ from .exceptions import (
 # For backward compatibility
 Browser = ChromeBrowser
 
-# Import ChromeDriver using a lazy import pattern to avoid circular imports
-ChromeDriver = None
+# Import ChromeBrowser as ChromeDriver for backward compatibility
 def get_chrome_driver():
-    """Lazy import for ChromeDriver to avoid circular imports."""
-    global ChromeDriver
-    if ChromeDriver is None:
-        from .drivers.chrome_driver import ChromeDriver as CD
-        ChromeDriver = CD
-    return ChromeDriver
+    """Get the Chrome browser driver.
+    
+    This is kept for backward compatibility. Use ChromeBrowser instead.
+    """
+    from .drivers.chrome import ChromeBrowser
+    return ChromeBrowser
 
 # Version of the browser module
 __version__ = '0.2.0'

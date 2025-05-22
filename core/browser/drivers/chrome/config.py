@@ -51,6 +51,7 @@ class ChromeConfig(BrowserConfig):
             'chrome_driver_path': self.chrome_driver_path,
             'experimental_options': self.experimental_options,
             'arguments': self.arguments,
+            'extra_args': self.extra_args,
             'extensions': [str(ext) for ext in self.extensions],
             'prefs': self.prefs,
             'headless': self.headless,

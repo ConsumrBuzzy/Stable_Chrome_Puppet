@@ -14,13 +14,60 @@ Examples:
 """
 import argparse
 import logging
+import re
 import sys
 import time
 from typing import Optional, Tuple
+from urllib.parse import urlparse
 
 from core.browser.browser import Browser
 from core.browser.config import ChromeConfig
 from core.browser.exceptions import BrowserError, NavigationError
+
+
+def is_valid_url(url: str) -> bool:
+    """Check if a string is a valid URL.
+    
+    Args:
+        url: The URL to validate
+        
+    Returns:
+        bool: True if the URL is valid, False otherwise
+    """
+    try:
+        result = urlparse(url)
+        return all([result.scheme in ('http', 'https'), result.netloc])
+    except (ValueError, AttributeError):
+        return False
+
+
+def prompt_for_url() -> str:
+    """Prompt the user to enter a URL.
+    
+    Returns:
+        str: The URL entered by the user or the default Google URL
+    """
+    default_url = 'https://www.google.com'
+    prompt = f"Enter URL to load [default: {default_url}]: "
+    
+    while True:
+        try:
+            user_input = input(prompt).strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nUsing default URL.")
+            return default_url
+            
+        if not user_input:  # User pressed Enter
+            return default_url
+            
+        # Add https:// if no scheme is provided
+        if not user_input.startswith(('http://', 'https://')):
+            user_input = f'https://{user_input}'
+            
+        if is_valid_url(user_input):
+            return user_input
+            
+        print("Invalid URL. Please try again (e.g., example.com or https://example.com)")
 
 # Configure logging
 logging.basicConfig(
@@ -47,8 +94,8 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         'url',
         nargs='?',
-        default='https://www.google.com',
-        help='URL to load (default: https://www.google.com)'
+        default=None,
+        help='URL to load (prompt if not provided)'
     )
     parser.add_argument(
         '--headless',

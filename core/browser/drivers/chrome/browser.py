@@ -20,9 +20,9 @@ from selenium.webdriver.chrome.webdriver import WebDriver as ChromeWebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
-from ....base import BaseBrowser
-from ....config import BrowserConfig
-from ....exceptions import (
+from core.browser.base import BaseBrowser
+from core.browser.config import BrowserConfig
+from core.browser.exceptions import (
     BrowserError,
     BrowserNotInitializedError,
     NavigationError,
@@ -40,8 +40,8 @@ ElementType = Union[WebElement, ShadowRoot]
 LocatorType = tuple[str, str]
 
 from .config import ChromeConfig
-from .options import ChromeOptionsBuilder
-from .service import ChromeServiceFactory
+from core.browser.drivers.chrome.options import ChromeOptionsBuilder
+from core.browser.drivers.chrome.service import ChromeServiceFactory
 
 # Logger will be set in __init__
 

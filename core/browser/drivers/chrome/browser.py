@@ -141,7 +141,11 @@ class ChromeBrowser(BaseDriver[T]):
         
         # Set window size
         if self.config.window_size:
-            options.add_argument(f"--window-size={self.config.window_size.width},{self.config.window_size.height}")
+            if isinstance(self.config.window_size, tuple) and len(self.config.window_size) == 2:
+                width, height = self.config.window_size
+                options.add_argument(f"--window-size={width},{height}")
+            elif hasattr(self.config.window_size, 'width') and hasattr(self.config.window_size, 'height'):
+                options.add_argument(f"--window-size={self.config.window_size.width},{self.config.window_size.height}")
         
         # Set user agent if provided
         if self.config.user_agent:

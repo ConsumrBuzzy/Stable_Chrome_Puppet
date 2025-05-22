@@ -25,34 +25,34 @@ class TestChromeDriver:
     """Test cases for ChromeDriver class."""
     
     @pytest.fixture
-def chrome_config(self) -> ChromeConfig:
-    """Create a ChromeConfig fixture for testing."""
-    return ChromeConfig(
-        headless=True,
-        window_size=(1024, 768),
-        chrome_args=[
-            '--disable-notifications',
-            '--disable-infobars',
-            '--disable-gpu',
-            '--no-sandbox',
-            '--disable-dev-shm-usage'
-        ],
-        driver_config=DriverConfig(
-            service_log_path='chromedriver.log'
+    def chrome_config(self) -> ChromeConfig:
+        """Create a ChromeConfig fixture for testing."""
+        return ChromeConfig(
+            headless=True,
+            window_size=(1024, 768),
+            chrome_args=[
+                '--disable-notifications',
+                '--disable-infobars',
+                '--disable-gpu',
+                '--no-sandbox',
+                '--disable-dev-shm-usage'
+            ],
+            driver_config=DriverConfig(
+                service_log_path='chromedriver.log'
+            )
         )
-    )
 
     @pytest.fixture
-def chrome_driver(self, chrome_config: ChromeConfig) -> Generator[ChromeDriver, None, None]:
-    """Create and yield a ChromeDriver instance for testing."""
-    driver = None
-    try:
-        driver = ChromeDriver(config=chrome_config)
-        driver.start()
-        yield driver
-    finally:
-        if driver:
-            driver.stop()
+    def chrome_driver(self, chrome_config: ChromeConfig) -> Generator[ChromeDriver, None, None]:
+        """Create and yield a ChromeDriver instance for testing."""
+        driver = None
+        try:
+            driver = ChromeDriver(config=chrome_config)
+            driver.start()
+            yield driver
+        finally:
+            if driver:
+                driver.stop()
 
     def test_initialization(self, chrome_driver: ChromeDriver):
         """Test that ChromeDriver initializes correctly."""

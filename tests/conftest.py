@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
 # Import config first to avoid circular imports
-from core.browser.config import ChromeConfig, DEFAULT_CONFIG
+from core.config import ChromeConfig, DEFAULT_CONFIG
 from core.browser.driver_config import DriverConfig
 
 # Lazy import for ChromeDriver to avoid circular imports

@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
 # Import ChromeDriver and ChromeConfig using absolute imports
 from core.browser.drivers.chrome_driver import ChromeDriver
-from core.browser.config import ChromeConfig, DriverConfig
+from core.config import ChromeConfig, DriverConfig
 
 class BaseTest(unittest.TestCase):
     """Base test class with common setup and teardown."""

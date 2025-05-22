@@ -21,7 +21,7 @@ from typing import Optional, Tuple
 from urllib.parse import urlparse
 
 from core.browser import Browser, ChromeBrowser
-from core.browser.config import ChromeConfig
+from core.config import ChromeConfig
 from core.browser.exceptions import BrowserError, NavigationError
 
 

@@ -14,7 +14,7 @@ from core.browser.exceptions import (
     BrowserNotInitializedError,
     NavigationError
 )
-from core.browser.config import ChromeConfig
+from core.config import ChromeConfig
 from core.browser.drivers.chrome_driver import ChromeDriver
 from core.browser.driver_config import DriverConfig
 

@@ -12,7 +12,7 @@ from selenium.common.exceptions import (
     WebDriverException
 )
 
-from .exceptions import (
+from ..exceptions import (
     NavigationError,
     TimeoutError as BrowserTimeoutError
 )

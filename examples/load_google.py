@@ -89,6 +89,7 @@ def main() -> None:
             use_existing_profile=True,
             enable_password_manager=args.password_manager,
             enable_password_manager_prompts=args.prompts,
+            prevent_instance_interference=True,  # This prevents interference with existing Chrome instances
             chrome_args=[
                 # Additional Chrome arguments can be added here
             ]

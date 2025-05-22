@@ -71,6 +71,7 @@ class ChromeConfig(BrowserConfig):
     enable_password_manager_prompts: bool = True
     chrome_args: List[str] = field(default_factory=list)
     experimental_options: Dict[str, Any] = field(default_factory=dict)
+    prevent_instance_interference: bool = True  # Prevents interference with existing Chrome instances
     
     def __post_init__(self):
         """Post-initialization setup."""

@@ -85,7 +85,7 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
         # Get Chrome arguments from config or use defaults
         chrome_args = getattr(self.config, 'chrome_args', [])
         
-        # Add common Chrome arguments
+        # Base Chrome arguments that are always used
         common_args = [
             '--no-first-run',
             '--no-default-browser-check',
@@ -111,18 +111,26 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
             '--safebrowsing-disable-auto-update',
             '--use-mock-keychain',
             '--remote-debugging-port=0',
-            # Important: These flags prevent interference with existing Chrome instances
-            '--no-startup-window',
-            '--no-sandbox',
-            '--disable-background-networking',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-breakpad',
-            '--disable-component-extensions-with-background-pages',
-            '--disable-ipc-flooding-protection',
-            '--disable-renderer-backgrounding',
             f'--window-size={self.config.window_size[0]},{self.config.window_size[1]}',
         ]
+        
+        # Add instance isolation flags if preventing interference
+        if getattr(self.config, 'prevent_instance_interference', True):
+            isolation_args = [
+                '--no-startup-window',
+                '--disable-background-networking',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-breakpad',
+                '--disable-component-extensions-with-background-pages',
+                '--disable-ipc-flooding-protection',
+                '--disable-renderer-backgrounding',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding'
+            ]
+            common_args.extend(isolation_args)
         
         # Add all arguments to options
         for arg in common_args + chrome_args:

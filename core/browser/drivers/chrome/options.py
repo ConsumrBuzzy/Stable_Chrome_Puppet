@@ -2,7 +2,7 @@
 
 This module provides a class for configuring Chrome browser options in a type-safe way.
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from pathlib import Path
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 

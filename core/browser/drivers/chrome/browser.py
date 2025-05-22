@@ -3,20 +3,44 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypeVar, Union, Tuple, cast
+from __future__ import annotations
 
-from selenium.webdriver import Chrome as SeleniumChrome
-from selenium.webdriver.chrome.service import Service as ChromeService
+import logging
+import time
+from typing import Any, Dict, List, Optional, Union, Type, TypeVar, Generic, TYPE_CHECKING
+
+from selenium import webdriver
+from selenium.common.exceptions import (
+    NoAlertPresentException,
+    NoSuchElementException,
+    TimeoutException,
+    WebDriverException,
+)
 from selenium.webdriver.chrome.options import Options as ChromeOptions
-from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.webdriver import WebDriver as ChromeWebDriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
 
-from ....exceptions import (
+from core.browser.drivers.base import BaseBrowser, BrowserConfig
+from core.browser.drivers.exceptions import (
     BrowserError,
     BrowserNotInitializedError,
     NavigationError,
-    ScreenshotError
+    ScreenshotError,
 )
-from ...base_browser import BaseBrowser
+from core.logging import get_logger
+
+if TYPE_CHECKING:
+    from selenium.webdriver.remote.shadowroot import ShadowRoot
+
+T = TypeVar('T', bound='ChromeBrowser')
+
+# Type aliases
+TimeoutType = Union[float, int]
+ElementType = Union[WebElement, ShadowRoot]
+LocatorType = tuple[str, str]
+
 from .config import ChromeConfig
 from .options import ChromeOptionsBuilder
 from .service import ChromeServiceFactory

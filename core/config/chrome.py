@@ -19,8 +19,11 @@ class ChromeConfig(BrowserConfig):
         self.chrome_binary: Optional[str] = kwargs.get('chrome_binary')
         self.chrome_driver_path: Optional[str] = kwargs.get('chrome_driver_path')
         self.experimental_options: Dict[str, Any] = kwargs.get('experimental_options', {})
-        self.arguments: List[str] = kwargs.get('arguments', [])
+        
+        # Handle both chrome_arguments and arguments for backward compatibility
+        self.arguments: List[str] = kwargs.get('chrome_arguments', kwargs.get('arguments', []))
         self.extra_args: List[str] = kwargs.get('extra_args', [])  # For backward compatibility
+        
         self.extensions: List[Union[str, Path]] = kwargs.get('extensions', [])
         self.prefs: Dict[str, Any] = kwargs.get('prefs', {})
         self.headless: bool = kwargs.get('headless', False)

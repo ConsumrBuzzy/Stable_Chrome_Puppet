@@ -125,8 +125,14 @@ class ChromeConfig(BrowserConfig):
             profile_args = [
                 f'--user-data-dir={self.user_data_dir}',
                 f'--profile-directory={self.profile_directory or "Default"}'
-            ])
+            ]
+            
+            # Add profile arguments to chrome_args if not already present
+            for arg in profile_args:
+                if arg.split('=')[0] not in [a.split('=')[0] for a in self.chrome_args]:
+                    self.chrome_args.append(arg)
         
+        # Add all common arguments to chrome_args if not already present
         for arg in common_args:
             if arg.split('=')[0] not in [a.split('=')[0] for a in self.chrome_args]:
                 self.chrome_args.append(arg)

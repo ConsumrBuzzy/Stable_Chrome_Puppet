@@ -5,7 +5,24 @@ This package provides configuration classes for different browser types
 and their respective options.
 """
 
-from .base import BrowserConfig, ProfileConfig
+from .base import (
+    BaseConfig,
+    BrowserConfig,
+    BrowserType,
+    DriverConfig,
+    LogLevel,
+    PerformanceLoggingConfig,
+    ProfileConfig,
+    ProxyConfig,
+)
 
-# ChromeConfig is now in core.browser.drivers.chrome.config
-__all__ = ['BrowserConfig', 'ProfileConfig']
+__all__ = [
+    'BaseConfig',
+    'BrowserConfig',
+    'BrowserType',
+    'DriverConfig',
+    'LogLevel',
+    'PerformanceLoggingConfig',
+    'ProfileConfig',
+    'ProxyConfig',
+]

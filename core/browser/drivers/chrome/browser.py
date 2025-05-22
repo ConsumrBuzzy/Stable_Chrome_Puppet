@@ -55,11 +55,23 @@ class ChromeBrowser(BaseBrowser):
             config: Configuration for the browser instance.
             logger: Logger instance to use.
         """
-        super().__init__(config or ChromeConfig(), logger)
+        # Ensure we have a config
+        if config is None:
+            config = ChromeConfig()
+            
+        # Initialize the base browser
+        super().__init__(config, logger)
+        
+        # Set up logger if not provided
+        if logger is None:
+            self._logger = logging.getLogger(self.__class__.__name__)
+        
+        # Initialize instance variables
         self._driver: Optional[SeleniumChrome] = None
         self._service: Optional[ChromeService] = None
         self._options: Optional[ChromeOptions] = None
         self._is_running: bool = False
+        self._config = config  # Store the config for later use
     
     def start(self) -> 'ChromeBrowser':
         """Start the Chrome browser instance.

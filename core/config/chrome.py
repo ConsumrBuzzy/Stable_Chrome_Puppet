@@ -12,7 +12,11 @@ class ChromeConfig(BrowserConfig):
         Args:
             **kwargs: Additional configuration options
         """
-        # Initialize parent class first
+        # Handle both chrome_arguments and arguments for backward compatibility
+        chrome_arguments = kwargs.pop('chrome_arguments', None)
+        arguments = kwargs.pop('arguments', [])
+        
+        # Initialize parent class first with remaining kwargs
         super().__init__(**kwargs)
         
         # Chrome-specific configurations
@@ -20,8 +24,8 @@ class ChromeConfig(BrowserConfig):
         self.chrome_driver_path: Optional[str] = kwargs.get('chrome_driver_path')
         self.experimental_options: Dict[str, Any] = kwargs.get('experimental_options', {})
         
-        # Handle both chrome_arguments and arguments for backward compatibility
-        self.arguments: List[str] = kwargs.get('chrome_arguments', kwargs.get('arguments', []))
+        # Set arguments, preferring chrome_arguments if both are provided
+        self.arguments: List[str] = chrome_arguments if chrome_arguments is not None else arguments
         self.extra_args: List[str] = kwargs.get('extra_args', [])  # For backward compatibility
         
         self.extensions: List[Union[str, Path]] = kwargs.get('extensions', [])

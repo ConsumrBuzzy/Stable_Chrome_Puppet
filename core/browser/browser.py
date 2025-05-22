@@ -214,13 +214,25 @@ class Browser(BaseBrowser):
     
     def stop(self) -> None:
         """Stop the browser and clean up resources."""
-        if self._driver is not None:
+        if hasattr(self, '_driver') and self._driver is not None:
             try:
                 self._driver.stop()
             except Exception as e:
-                self.logger.error(f"Error stopping browser: {e}")
+                self._logger.error(f"Error stopping browser: {e}")
             finally:
                 self._driver = None
+                self._initialized = False
+                # Clean up the driver instance
+                if hasattr(self, '_driver_instance'):
+                    try:
+                        if hasattr(self._driver_instance, 'quit'):
+                            self._driver_instance.quit()
+                        elif hasattr(self._driver_instance, 'close'):
+                            self._driver_instance.close()
+                    except Exception as e:
+                        self._logger.error(f"Error cleaning up driver instance: {e}")
+                    finally:
+                        super().__setattr__('_driver_instance', None)
     
     def __enter__(self):
         """Context manager entry."""

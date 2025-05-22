@@ -1,43 +1,20 @@
-"""Chrome browser implementation using Selenium WebDriver."""
-import os
-import sys
-import platform
-import shutil
-import struct
-import zipfile
-import urllib.request
+"""Chrome browser implementation using the new driver architecture.
+
+This module provides a high-level interface for Chrome browser automation
+using the new driver-based architecture.
+"""
 import logging
-from pathlib import Path
-from typing import Optional, Any, Dict, Tuple, Union
+from typing import Any, Optional
 
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options as ChromeOptions
-from selenium.common.exceptions import WebDriverException, TimeoutException
-from webdriver_manager.chrome import ChromeDriverManager
-
+from .drivers import get_driver_class
 from .base import BaseBrowser
-from .exceptions import (
-    BrowserError,
-    BrowserNotInitializedError,
-    NavigationError,
-    ScreenshotError,
-    ElementNotFoundError,
-    ElementNotInteractableError,
-    TimeoutError as BrowserTimeoutError
-)
-
-# Import features from their new locations
-from .features.element import ElementHelper
-from .features.navigation import NavigationMixin
-from .features.screenshot import ScreenshotHelper
 
 
 class ChromeBrowser(BaseBrowser):
-    """Chrome browser implementation for web automation.
+    """Chrome browser implementation using the new driver architecture.
     
-    This class provides a high-level interface for browser automation with Chrome,
-    including navigation, element interaction, and screenshot capabilities.
+    This class serves as a thin wrapper around the ChromeDriver implementation,
+    providing backward compatibility with the existing API.
     """
     
     def __init__(self, config: Any, logger: Optional[logging.Logger] = None):
@@ -48,7 +25,39 @@ class ChromeBrowser(BaseBrowser):
             logger: Optional logger instance for logging
         """
         super().__init__(config, logger)
-        self.driver = None
+        self._driver = None
+        self._initialize_driver()
+    
+    def _initialize_driver(self) -> None:
+        """Initialize the Chrome driver."""
+        ChromeDriver = get_driver_class("chrome")
+        self._driver = ChromeDriver(self.config, self.logger)
+    
+    def start(self) -> None:
+        """Start the browser."""
+        if self._driver is None:
+            self._initialize_driver()
+        self._driver.start()
+    
+    def stop(self) -> None:
+        """Stop the browser."""
+        if self._driver is not None:
+            self._driver.stop()
+    
+    def __enter__(self):
+        """Context manager entry."""
+        self.start()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.stop()
+    
+    def __getattr__(self, name):
+        """Delegate attribute access to the underlying driver."""
+        if self._driver is None:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        return getattr(self._driver, name)
         self._service = None
         self._is_running = False
         self._logger = logger or logging.getLogger(__name__)

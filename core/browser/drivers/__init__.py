@@ -91,7 +91,7 @@ class BaseBrowserDriver(BaseBrowser):
 
 # Import browser drivers to register them
 # This must be at the end of the file to avoid circular imports
-from .chrome_driver import ChromeDriver  # noqa: F401
+from .chrome.browser import ChromeBrowser as ChromeDriver  # noqa: F401
 
 __all__ = [
     'BaseBrowserDriver',

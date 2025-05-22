@@ -82,10 +82,25 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
         """Set up Chrome options based on configuration."""
         self._options = ChromeOptions()
         
-        # Add Chrome arguments from config
+        # Default Chrome arguments for better stability and to suppress warnings
+        default_args = [
+            '--disable-gpu',  # Disable GPU hardware acceleration
+            '--log-level=3',  # Suppress most console logs
+            '--no-sandbox',
+            '--disable-dev-shm-usage',  # Overcome limited resource problems
+            '--disable-software-rasterizer',
+            '--disable-extensions',
+            '--disable-infobars',
+            '--disable-notifications',
+            '--disable-browser-side-navigation',
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--disable-blink-features=AutomationControlled',
+        ]
+        
+        # Add default arguments if not already specified in config
         chrome_args = getattr(self.config, 'chrome_args', [])
-        for arg in chrome_args:
-            if arg not in self._options.arguments:
+        for arg in default_args + chrome_args:
+            if arg.split('=')[0] not in [a.split('=')[0] for a in self._options.arguments]:
                 self._options.add_argument(arg)
         
         # Add experimental options if provided
@@ -97,6 +112,10 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
         if hasattr(self.config, 'window_size') and self.config.window_size:
             width, height = self.config.window_size
             self._options.add_argument(f'--window-size={width},{height}')
+        
+        # Disable GPU-related features that might cause warnings
+        self._options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        self._options.add_experimental_option('excludeSwitches', ['enable-automation'])
     
     def navigate_to(self, url: str, wait_time: Optional[float] = None) -> bool:
         """Navigate to the specified URL.

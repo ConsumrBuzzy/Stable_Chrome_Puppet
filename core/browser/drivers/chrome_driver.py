@@ -174,7 +174,7 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
         
         # Enable password manager if configured
         if getattr(self.config, 'enable_password_manager', True):
-            default_args.extend([
+            common_args.extend([
                 '--enable-automation',
                 '--disable-blink-features=AutomationControlled',
             ])
@@ -194,7 +194,7 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
             
             # Enable password manager prompts if configured
             if getattr(self.config, 'enable_password_manager_prompts', True):
-                default_args.extend([
+                common_args.extend([
                     '--enable-autofill-password-reveal',
                     '--enable-password-manager-reauthentication',
                 ])

@@ -7,9 +7,8 @@ It includes Chrome-specific implementations, element handling, navigation, and s
 
 # Import key components to make them available at the package level
 from .base import BaseBrowser, retry_on_failure
-from .features.element import ElementHelper
-from .features.navigation import NavigationMixin, wait_for_page_load
-from .features.screenshot import ScreenshotHelper
+from .drivers.chrome import ChromeBrowser
+from .drivers.base_driver import BaseBrowserDriver
 from .exceptions import (
     BrowserError,
     BrowserNotInitializedError,
@@ -19,6 +18,9 @@ from .exceptions import (
     TimeoutError,
     ScreenshotError
 )
+
+# For backward compatibility
+Browser = ChromeBrowser
 
 # Import ChromeDriver using a lazy import pattern to avoid circular imports
 ChromeDriver = None

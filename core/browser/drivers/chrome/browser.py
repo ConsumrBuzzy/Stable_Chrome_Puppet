@@ -68,7 +68,7 @@ class ChromeBrowser(BaseBrowser):
             self._logger = logging.getLogger(self.__class__.__name__)
         
         # Initialize instance variables
-        self._driver: Optional[SeleniumChrome] = None
+        self._driver: Optional[ChromeWebDriver] = None
         self._service: Optional[ChromeService] = None
         self._options: Optional[ChromeOptions] = None
         self._is_running: bool = False

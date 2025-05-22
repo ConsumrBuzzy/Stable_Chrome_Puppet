@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from selenium.webdriver.remote.webdriver import WebDriver
     from selenium.webdriver.remote.webelement import WebElement
 
-from .exceptions import ScreenshotError
+from ..exceptions import ScreenshotError
 
 class ScreenshotHelper:
     """Helper class for taking and managing screenshots."""

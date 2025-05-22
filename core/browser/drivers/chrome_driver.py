@@ -111,6 +111,38 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
             '--safebrowsing-disable-auto-update',
             '--use-mock-keychain',
             '--remote-debugging-port=0',
+            '--disable-extensions',
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--disable-logging',
+            '--log-level=3',
+            '--disable-crash-reporter',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-zygote',
+            '--single-process',
+            '--disable-gpu-sandbox',
+            '--disable-software-rasterizer',
+            '--disable-threaded-animation',
+            '--disable-threaded-scrolling',
+            '--disable-in-process-stack-traces',
+            '--disable-logging',
+            '--disable-login-animations',
+            '--disable-notifications',
+            '--disable-offer-store-unmasked-wallet-cards',
+            '--disable-offer-upload-credit-cards',
+            '--disable-offers',
+            '--disable-print-preview',
+            '--disable-prompt-on-repost',
+            '--disable-renderer-backgrounding',
+            '--disable-session-crashed-bubble',
+            '--disable-sync',
+            '--disable-translate',
+            '--metrics-recording-only',
+            '--no-first-run',
+            '--safebrowsing-disable-auto-update',
+            '--enable-automation',
+            '--password-store=basic',
+            '--use-mock-keychain',
             f'--window-size={self.config.window_size[0]},{self.config.window_size[1]}',
         ]
         
@@ -128,7 +160,8 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
                 '--disable-backgrounding-occluded-windows',
                 '--disable-background-timer-throttling',
                 '--disable-backgrounding-occluded-windows',
-                '--disable-renderer-backgrounding'
+                '--disable-renderer-backgrounding',
+                '--disable-features=RendererCodeIntegrity'
             ]
             common_args.extend(isolation_args)
         

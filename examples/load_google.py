@@ -106,12 +106,15 @@ def main():
     # Configure Chrome with profile settings
     config = ChromeConfig(
         headless=False,  # Show browser window
-        user_data_dir=user_data_dir,
-        profile_directory=profile,
-        use_existing_profile=True,
-        extra_args=[
+        chrome_options={
+            'user_data_dir': user_data_dir,
+            'profile_directory': profile,
+        },
+        chrome_arguments=[
             '--disable-notifications',
             '--start-maximized',
+            f'--profile-directory={profile}',
+            f'--user-data-dir={user_data_dir}'
         ]
     )
     

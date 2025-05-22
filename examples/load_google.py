@@ -22,11 +22,17 @@ def main():
     browser = Browser(config=config)
     
     try:
+        # Start the browser
+        print("Starting browser...")
+        browser.start()
+        
         # Navigate to Google
         print("Navigating to Google...")
-        browser.get('https://www.google.com')
-        print(f"Current URL: {browser.current_url}")
-        print(f"Page title: {browser.title}")
+        browser.navigate_to('https://www.google.com')
+        
+        # Get current URL and title
+        print(f"Current URL: {browser.get_current_url()}")
+        print(f"Page title: {browser.get_page_source()[:100]}...")  # Print first 100 chars of page source
         
         # Keep the browser open for a while
         print("Browser will close in 30 seconds...")
@@ -37,7 +43,7 @@ def main():
     finally:
         # Close the browser
         print("Closing browser...")
-        browser.quit()
+        browser.stop()
 
 if __name__ == "__main__":
     main()

@@ -1,105 +1,659 @@
 """Chrome browser implementation."""
 import logging
 import os
+import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypeVar, Union
+from typing import Any, Dict, List, Optional, TypeVar, Union, Tuple, cast
 
 from selenium.webdriver import Chrome as SeleniumChrome
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.common.exceptions import WebDriverException
 
-from ....config import ChromeConfig
-from ....types import BrowserType, WindowSize
-from ...base_driver import BaseDriver
+from ....exceptions import (
+    BrowserError,
+    BrowserNotInitializedError,
+    NavigationError,
+    ScreenshotError
+)
+from ...base_browser import BaseBrowser
+from .config import ChromeConfig
+from .options import ChromeOptionsBuilder
+from .service import ChromeServiceFactory
 
 logger = logging.getLogger(__name__)
-T = TypeVar('T', bound='ChromeBrowser')
 
-
-class ChromeBrowser(BaseDriver[T]):
+class ChromeBrowser(BaseBrowser):
     """Chrome browser implementation using Selenium WebDriver."""
     
-    def __init__(self, config: Optional[ChromeConfig] = None) -> None:
+    def __init__(self, config: Optional[ChromeConfig] = None, logger: Optional[logging.Logger] = None) -> None:
         """Initialize the Chrome browser.
         
         Args:
             config: Configuration for the browser instance.
+            logger: Logger instance to use.
         """
-        super().__init__(config or ChromeConfig())
+        super().__init__(config or ChromeConfig(), logger)
         self._driver: Optional[SeleniumChrome] = None
         self._service: Optional[ChromeService] = None
         self._options: Optional[ChromeOptions] = None
-        self._is_running: bool = False  # Ensure this is initialized
+        self._is_running: bool = False
     
-    def start(self) -> T:
+    def start(self) -> 'ChromeBrowser':
         """Start the Chrome browser instance.
         
         Returns:
             Self for method chaining.
             
         Raises:
-            WebDriverException: If the browser fails to start.
+            BrowserError: If the browser fails to start.
         """
         if self._is_running:
-            logger.warning("Browser is already running")
+            self._logger.warning("Browser is already running")
             return self
             
         try:
-            self._options = self._setup_options()
-            self._service = self._create_service()
+            # Initialize Chrome options
+            options_builder = ChromeOptionsBuilder(self._config)
+            self._options = options_builder.build()
             
-            logger.info("Starting Chrome browser")
+            # Create Chrome service
+            service_factory = ChromeServiceFactory(self._config)
+            self._service = service_factory.create_service()
+            
+            self._logger.info("Starting Chrome browser")
             self._driver = SeleniumChrome(
                 service=self._service,
                 options=self._options
             )
             
+            # Set window size if specified
+            if hasattr(self._config, 'window_size') and self._config.window_size:
+                self.set_window_size(*self._config.window_size)
+            
             self._is_running = True
-            logger.info("Chrome browser started successfully")
+            self._logger.info("Chrome browser started successfully")
             return self
             
-        except Exception as e:
-            logger.error(f"Failed to start Chrome browser: {e}")
+        except WebDriverException as e:
+            error_msg = f"Failed to start Chrome browser: {e}"
+            self._logger.error(error_msg)
             self.stop()
-            raise
+            raise BrowserError(error_msg) from e
+            
+        except Exception as e:
+            error_msg = f"Unexpected error starting Chrome browser: {e}"
+            self._logger.error(error_msg)
+            self.stop()
+            raise BrowserError(error_msg) from e
     
     def stop(self) -> None:
-        """Stop the Chrome browser and clean up resources."""
-        if not getattr(self, '_is_running', False):
+        """Stop the Chrome browser and clean up resources.
+        
+        This method ensures all browser processes and resources are properly cleaned up.
+        """
+        if not self._is_running:
+            self._logger.debug("Browser is not running, nothing to stop")
             return
             
         try:
-            if hasattr(self, '_driver') and self._driver is not None:
+            self._logger.info("Stopping Chrome browser")
+            
+            # Close all browser windows and end the WebDriver session
+            if self._driver is not None:
                 try:
                     self._driver.quit()
+                except WebDriverException as e:
+                    self._logger.warning(f"Error while quitting WebDriver: {e}")
                 except Exception as e:
-                    logger.error(f"Error while quitting driver: {e}")
+                    self._logger.error(f"Unexpected error while quitting WebDriver: {e}", exc_info=True)
                 finally:
                     self._driver = None
-                
-            if hasattr(self, '_service') and self._service is not None:
+            
+            # Stop the Chrome service
+            if self._service is not None:
                 try:
                     self._service.stop()
                 except Exception as e:
-                    logger.error(f"Error while stopping service: {e}")
+                    self._logger.error(f"Error while stopping Chrome service: {e}", exc_info=True)
                 finally:
                     self._service = None
-                
+            
             self._is_running = False
-            logger.info("Chrome browser stopped")
+            self._logger.info("Chrome browser stopped successfully")
             
         except Exception as e:
             self._is_running = False
-            logger.error(f"Error while stopping Chrome browser: {e}")
-            raise
+            self._logger.error(f"Unexpected error while stopping Chrome browser: {e}", exc_info=True)
+            raise BrowserError(f"Failed to stop Chrome browser: {e}") from e
     
-    def get_browser_type(self) -> BrowserType:
+    # Navigation Methods
+    
+    def get(self, url: str, timeout: Optional[float] = None) -> None:
+        """Navigate to the specified URL.
+        
+        Args:
+            url: The URL to navigate to.
+            timeout: Maximum time in seconds to wait for page load. If None, uses default timeout.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            NavigationError: If navigation fails.
+        """
+        if not self._is_running or self._driver is None:
+            raise BrowserNotInitializedError("Browser is not running")
+            
+        try:
+            self._logger.info(f"Navigating to: {url}")
+            if timeout is not None:
+                self._driver.set_page_load_timeout(timeout)
+                
+            self._driver.get(url)
+            self._logger.debug(f"Successfully navigated to: {url}")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to navigate to {url}: {e}"
+            self._logger.error(error_msg)
+            raise NavigationError(error_msg) from e
+            
+        except Exception as e:
+            error_msg = f"Unexpected error during navigation to {url}: {e}"
+            self._logger.error(error_msg, exc_info=True)
+            raise NavigationError(error_msg) from e
+    
+    def back(self) -> None:
+        """Go back to the previous page in browser history.
+        
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            NavigationError: If the back operation fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug("Navigating back in browser history")
+            self._driver.back()
+            self._logger.debug("Successfully navigated back")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to navigate back: {e}"
+            self._logger.error(error_msg)
+            raise NavigationError(error_msg) from e
+    
+    def forward(self) -> None:
+        """Go forward to the next page in browser history.
+        
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            NavigationError: If the forward operation fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug("Navigating forward in browser history")
+            self._driver.forward()
+            self._logger.debug("Successfully navigated forward")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to navigate forward: {e}"
+            self._logger.error(error_msg)
+            raise NavigationError(error_msg) from e
+    
+    def refresh(self) -> None:
+        """Refresh the current page.
+        
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            NavigationError: If the refresh operation fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug("Refreshing current page")
+            self._driver.refresh()
+            self._logger.debug("Successfully refreshed page")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to refresh page: {e}"
+            self._logger.error(error_msg)
+            raise NavigationError(error_msg) from e
+    
+    # Window Management
+    
+    def set_window_size(self, width: int, height: int) -> None:
+        """Set the browser window size.
+        
+        Args:
+            width: Window width in pixels.
+            height: Window height in pixels.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If setting window size fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug(f"Setting window size to {width}x{height}")
+            self._driver.set_window_size(width, height)
+            self._logger.debug(f"Window size set to {width}x{height}")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to set window size: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    def maximize_window(self) -> None:
+        """Maximize the browser window.
+        
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If maximizing window fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug("Maximizing browser window")
+            self._driver.maximize_window()
+            self._logger.debug("Browser window maximized")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to maximize window: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    def minimize_window(self) -> None:
+        """Minimize the browser window.
+        
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If minimizing window fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug("Minimizing browser window")
+            self._driver.minimize_window()
+            self._logger.debug("Browser window minimized")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to minimize window: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    def fullscreen_window(self) -> None:
+        """Make the browser window fullscreen.
+        
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If making window fullscreen fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug("Setting browser window to fullscreen")
+            self._driver.fullscreen_window()
+            self._logger.debug("Browser window set to fullscreen")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to set window to fullscreen: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    # Browser Information
+    
+    def get_browser_type(self) -> str:
         """Get the browser type.
         
         Returns:
-            The browser type (CHROME).
+            The browser type as a string ("chrome").
         """
-        return BrowserType.CHROME
+        return "chrome"
+    
+    # Tab Management
+    
+    def new_tab(self, url: Optional[str] = None, switch: bool = True) -> str:
+        """Open a new browser tab.
+        
+        Args:
+            url: Optional URL to load in the new tab.
+            switch: Whether to switch to the new tab.
+            
+        Returns:
+            The window handle of the new tab.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If creating a new tab fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug("Opening new tab")
+            self._driver.execute_script("window.open('');")
+            
+            # Get the new window handle
+            new_window = [handle for handle in self._driver.window_handles 
+                        if handle != self._driver.current_window_handle][-1]
+            
+            if switch:
+                self.switch_to_tab(new_window)
+            
+            # Navigate to URL if provided
+            if url:
+                self.get(url)
+            
+            self._logger.debug(f"Opened new tab with handle: {new_window}")
+            return new_window
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to open new tab: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    def close_tab(self, window_handle: Optional[str] = None) -> None:
+        """Close the current or specified browser tab.
+        
+        Args:
+            window_handle: Optional window handle of the tab to close. 
+                         If None, closes the current tab.
+                         
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If closing the tab fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            if window_handle:
+                # Switch to the tab first if it's not the current one
+                if window_handle != self._driver.current_window_handle:
+                    self.switch_to_tab(window_handle)
+            
+            self._logger.debug(f"Closing tab with handle: {window_handle or 'current'}")
+            self._driver.close()
+            self._logger.debug("Tab closed successfully")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to close tab: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    def switch_to_tab(self, window_handle: str) -> None:
+        """Switch to a specific browser tab.
+        
+        Args:
+            window_handle: The window handle of the tab to switch to.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If switching tabs fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            if window_handle not in self._driver.window_handles:
+                raise BrowserError(f"No such window handle: {window_handle}")
+                
+            self._logger.debug(f"Switching to tab with handle: {window_handle}")
+            self._driver.switch_to.window(window_handle)
+            self._logger.debug("Successfully switched tabs")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to switch to tab: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    def get_current_tab_handle(self) -> str:
+        """Get the handle of the current tab.
+        
+        Returns:
+            The window handle of the current tab.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        return self._driver.current_window_handle
+    
+    def get_tab_handles(self) -> List[str]:
+        """Get handles of all open tabs.
+        
+        Returns:
+            A list of window handles for all open tabs.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        return self._driver.window_handles
+    
+    # Page Information
+    
+    def get_current_url(self) -> str:
+        """Get the current page URL.
+        
+        Returns:
+            The current URL as a string.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        return self._driver.current_url
+    
+    def get_page_title(self) -> str:
+        """Get the current page title.
+        
+        Returns:
+            The page title as a string.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        return self._driver.title
+    
+    def get_page_source(self) -> str:
+        """Get the current page source.
+        
+        Returns:
+            The page source as a string.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        return self._driver.page_source
+    
+    # Helper Methods
+    
+    # Cookie Management
+    
+    def add_cookie(self, name: str, value: str, **kwargs) -> None:
+        """Add a cookie to the current page.
+        
+        Args:
+            name: Cookie name.
+            value: Cookie value.
+            **kwargs: Additional cookie attributes (domain, path, secure, expiry, etc.).
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If adding the cookie fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            cookie = {'name': name, 'value': value, **kwargs}
+            self._logger.debug(f"Adding cookie: {name}={value}")
+            self._driver.add_cookie(cookie)
+            self._logger.debug("Cookie added successfully")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to add cookie {name}: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    def get_cookie(self, name: str) -> Optional[Dict[str, Any]]:
+        """Get a cookie by name.
+        
+        Args:
+            name: Name of the cookie to retrieve.
+            
+        Returns:
+            Cookie dictionary if found, None otherwise.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        return self._driver.get_cookie(name)
+    
+    def get_all_cookies(self) -> List[Dict[str, Any]]:
+        """Get all cookies for the current page.
+        
+        Returns:
+            List of cookie dictionaries.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        return self._driver.get_cookies()
+    
+    def delete_cookie(self, name: str) -> None:
+        """Delete a cookie by name.
+        
+        Args:
+            name: Name of the cookie to delete.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If deleting the cookie fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug(f"Deleting cookie: {name}")
+            self._driver.delete_cookie(name)
+            self._logger.debug("Cookie deleted successfully")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to delete cookie {name}: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    def delete_all_cookies(self) -> None:
+        """Delete all cookies for the current page.
+        
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If deleting cookies fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug("Deleting all cookies")
+            self._driver.delete_all_cookies()
+            self._logger.debug("All cookies deleted successfully")
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to delete all cookies: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    # Screenshot Methods
+    
+    def take_screenshot(self, filepath: Optional[str] = None) -> Union[bytes, str]:
+        """Take a screenshot of the current page.
+        
+        Args:
+            filepath: Optional path to save the screenshot. If None, returns the image as bytes.
+            
+        Returns:
+            If filepath is None, returns the screenshot as bytes.
+            If filepath is provided, returns the filepath where the screenshot was saved.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            ScreenshotError: If taking the screenshot fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug("Taking screenshot")
+            screenshot = self._driver.get_screenshot_as_png()
+            
+            if filepath:
+                try:
+                    with open(filepath, 'wb') as f:
+                        f.write(screenshot)
+                    self._logger.debug(f"Screenshot saved to {filepath}")
+                    return filepath
+                except IOError as e:
+                    error_msg = f"Failed to save screenshot to {filepath}: {e}"
+                    self._logger.error(error_msg)
+                    raise ScreenshotError(error_msg) from e
+            
+            self._logger.debug("Screenshot taken successfully")
+            return screenshot
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to take screenshot: {e}"
+            self._logger.error(error_msg)
+            raise ScreenshotError(error_msg) from e
+    
+    def take_element_screenshot(self, element, filepath: Optional[str] = None) -> Union[bytes, str]:
+        """Take a screenshot of a specific element.
+        
+        Args:
+            element: The WebElement to capture.
+            filepath: Optional path to save the screenshot. If None, returns the image as bytes.
+            
+        Returns:
+            If filepath is None, returns the screenshot as bytes.
+            If filepath is provided, returns the filepath where the screenshot was saved.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            ScreenshotError: If taking the element screenshot fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug("Taking element screenshot")
+            screenshot = element.screenshot_as_png
+            
+            if filepath:
+                try:
+                    with open(filepath, 'wb') as f:
+                        f.write(screenshot)
+                    self._logger.debug(f"Element screenshot saved to {filepath}")
+                    return filepath
+                except IOError as e:
+                    error_msg = f"Failed to save element screenshot to {filepath}: {e}"
+                    self._logger.error(error_msg)
+                    raise ScreenshotError(error_msg)
+            
+            self._logger.debug("Element screenshot taken successfully")
+            return screenshot
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to take element screenshot: {e}"
+            self._logger.error(error_msg)
+            raise ScreenshotError(error_msg) from e
+    
+    # Helper Methods
+    
+    def _check_browser_initialized(self) -> None:
+        """Check if the browser is properly initialized and running.
+        
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        if not self._is_running or self._driver is None:
+            raise BrowserNotInitializedError("Browser is not running or not properly initialized")
     
     def get_options(self) -> ChromeOptions:
         """Get the Chrome options.

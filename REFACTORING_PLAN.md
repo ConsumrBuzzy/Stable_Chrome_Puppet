@@ -3,6 +3,7 @@
 This document outlines the refactoring plan for the Stable Chrome Puppet project, focusing on creating a driver-agnostic architecture that's more modular and maintainable.
 
 ## Table of Contents
+
 1. [Core Architecture](#1-core-architecture)
 2. [Browser Interface](#2-browser-interface)
 3. [Driver Implementation](#3-driver-implementation)
@@ -214,43 +215,6 @@ docs/
 4. Add/update tests
 5. Update documentation
 6. Submit a pull request
-
-### 3.1 Chrome Driver
-
-```python
-@register_browser("chrome")
-class ChromeBrowser(BaseBrowser):
-    """Chrome browser implementation."""
-    def __init__(self, config=None, logger=None):
-        super().__init__(config or ChromeConfig(), logger)
-        self._options = None
-        self._service = None
-        
-    def start(self):
-        # Implementation for starting Chrome
-        pass
-        
-    # Other required method implementations
-```
-
-### 3.2 Implementation Tasks
-- [ ] Implement Chrome browser driver
-- [ ] Add Chrome-specific options and capabilities
-- [ ] Implement Chrome DevTools protocol support
-- [ ] Add extension management
-
-## 4. Configuration Management
-
-### 4.1 Configuration Structure
-
-```python
-class BrowserConfig:
-    """Base browser configuration."""
-    def __init__(self, **kwargs):
-        self.headless = kwargs.get('headless', False)
-        self.window_size = kwargs.get('window_size', (1280, 800))
-        # Common configuration options
-
 class ChromeConfig(BrowserConfig):
     """Chrome-specific configuration."""
     def __init__(self, **kwargs):

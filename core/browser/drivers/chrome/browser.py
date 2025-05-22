@@ -20,15 +20,15 @@ from selenium.webdriver.chrome.webdriver import WebDriver as ChromeWebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
-from core.browser.base import BaseBrowser
-from core.browser.config import BrowserConfig
-from core.browser.drivers.exceptions import (
+from ....base import BaseBrowser
+from ....config import BrowserConfig
+from ....exceptions import (
     BrowserError,
     BrowserNotInitializedError,
     NavigationError,
     ScreenshotError,
 )
-from core.logging import get_logger
+from ....logging import get_logger
 
 if TYPE_CHECKING:
     from selenium.webdriver.remote.shadowroot import ShadowRoot

@@ -6,19 +6,7 @@ and their respective options.
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple, Union
 
-
-@dataclass
-class DriverConfig:
-    """Base configuration for browser drivers.
-    
-    Attributes:
-        driver_path: Path to the browser driver executable
-        service_args: Additional arguments for the driver service
-        service_log_path: Path to save the driver service logs
-    """
-    driver_path: Optional[str] = None
-    service_args: List[str] = field(default_factory=list)
-    service_log_path: Optional[str] = None
+from .driver_config import DriverConfig
 
 
 @dataclass

@@ -70,35 +70,49 @@ class ChromeOptionsBuilder:
             self._arguments.append("--headless=new")
         return self
     
-    def set_window_size(self, window_size: Union[Tuple[int, int], 'WindowSize', None], 
-                       height: Optional[int] = None) -> 'ChromeOptionsBuilder':
+    def set_window_size(self, window_size: Any = None, height: Optional[int] = None) -> 'ChromeOptionsBuilder':
         """Set the browser window size.
         
         Args:
-            window_size: Either a tuple of (width, height) or a WindowSize named tuple.
-            height: Optional height in pixels if window_size is an integer width.
+            window_size: Either a WindowSize named tuple, a tuple of (width, height), or width as int
+            height: Optional height in pixels if window_size is an integer width
             
         Returns:
-            Self for method chaining.
+            Self for method chaining
             
         Raises:
-            TypeError: If window_size is not a valid type.
+            TypeError: If window_size is not a valid type
+            ValueError: If window size values are invalid
         """
         if window_size is None:
             return self
             
-        if isinstance(window_size, (tuple, WindowSize)):
-            if len(window_size) != 2:
-                raise ValueError("Window size must be a tuple of (width, height)")
-            width, height = window_size
-        elif isinstance(window_size, int) and height is not None:
-            width = window_size
-        else:
-            raise TypeError("Invalid type for window_size. Expected tuple, WindowSize, or int with height")
+        try:
+            # Handle WindowSize named tuple
+            if hasattr(window_size, '_asdict'):  # Check if it's a named tuple
+                width, height = window_size.width, window_size.height
+            # Handle tuple/list
+            elif isinstance(window_size, (tuple, list)) and len(window_size) == 2:
+                width, height = window_size
+            # Handle single int with separate height
+            elif isinstance(window_size, int) and height is not None:
+                width = window_size
+            else:
+                raise TypeError("Invalid window_size type. Expected WindowSize, (width, height) tuple, or int with height")
             
-        self._window_size = WindowSize(width, height)
-        self._arguments.append(f"--window-size={width},{height}")
-        return self
+            # Validate width and height
+            if not isinstance(width, int) or not isinstance(height, int) or width <= 0 or height <= 0:
+                raise ValueError("Width and height must be positive integers")
+                
+            # Set the window size
+            self._window_size = WindowSize(width, height)
+            self._arguments.append(f"--window-size={width},{height}")
+            
+            return self
+            
+        except (TypeError, ValueError) as e:
+            self._logger.error(f"Failed to set window size: {e}")
+            raise
     
     def set_user_agent(self, user_agent: str) -> 'ChromeOptionsBuilder':
         """Set the user agent string.

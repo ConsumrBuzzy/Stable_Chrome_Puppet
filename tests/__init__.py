@@ -5,17 +5,13 @@ This package contains all the test cases and utilities for testing Chrome Puppet
 """
 
 # Import test utilities and base classes
-from .base_test import BaseTest
-from .test_browser_init import TestBrowserInitialization
-from .test_navigation import TestNavigation
-from .test_screenshot import TestScreenshot
+from .test_browser import TestBrowser
+from .test_chrome_driver import TestChromeDriver
 
 # Make test cases available at package level
 __all__ = [
-    'BaseTest',
-    'TestBrowserInitialization',
-    'TestNavigation',
-    'TestScreenshot',
+    'TestBrowser',
+    'TestChromeDriver',
 ]
 
 # Configure test logging

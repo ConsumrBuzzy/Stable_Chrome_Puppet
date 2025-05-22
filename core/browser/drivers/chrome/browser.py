@@ -134,17 +134,34 @@ class ChromeBrowser(BaseBrowser):
             self._service = service_factory.create_service()
             
             self._logger.info("Starting Chrome browser")
-            self._driver = ChromeWebDriver(
-                service=self._service,
-                options=self._options
-            )
-            
-            # Set window size if specified
-            if hasattr(self._config, 'window_size') and self._config.window_size:
-                self.set_window_size(*self._config.window_size)
-            
-            self._is_running = True
-            self._logger.info("Chrome browser started successfully")
+            try:
+                self._driver = ChromeWebDriver(
+                    service=self._service,
+                    options=self._options
+                )
+                
+                # Mark as running before setting window size
+                self._is_running = True
+                
+                # Set window size if specified
+                if hasattr(self._config, 'window_size') and self._config.window_size:
+                    try:
+                        self.set_window_size(*self._config.window_size)
+                    except Exception as e:
+                        self._logger.warning(f"Could not set window size: {e}")
+                
+                self._logger.info("Chrome browser started successfully")
+                return self
+                
+            except Exception as e:
+                self._is_running = False
+                if self._driver:
+                    try:
+                        self._driver.quit()
+                    except:
+                        pass
+                    self._driver = None
+                raise
             return self
             
         except WebDriverException as e:

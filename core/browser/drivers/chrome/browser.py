@@ -39,7 +39,7 @@ TimeoutType = Union[float, int]
 ElementType = Union[WebElement, ShadowRoot]
 LocatorType = tuple[str, str]
 
-from .config import ChromeConfig
+from core.browser.drivers.chrome.config import ChromeConfig
 from core.browser.drivers.chrome.options import ChromeOptionsBuilder
 from core.browser.drivers.chrome.service import ChromeServiceFactory
 

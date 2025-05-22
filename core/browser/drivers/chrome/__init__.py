@@ -1,0 +1,26 @@
+"""Chrome browser driver implementation.
+
+This package provides the Chrome browser driver implementation for the browser automation
+framework. It uses Selenium WebDriver under the hood to control a Chrome browser instance.
+"""
+from typing import Type, TypeVar
+
+from ...base_driver import BaseDriver
+from .browser import ChromeBrowser
+
+# Re-export the ChromeBrowser class
+__all__ = ['ChromeBrowser']
+
+# Type variable for type hints
+T = TypeVar('T', bound='ChromeBrowser')
+
+def create_driver(config=None) -> ChromeBrowser:
+    """Create a new Chrome browser instance.
+    
+    Args:
+        config: Optional configuration for the browser.
+        
+    Returns:
+        A new ChromeBrowser instance.
+    """
+    return ChromeBrowser(config=config)

@@ -6,8 +6,8 @@ BaseBrowserDriver interface. Each browser (Chrome, Firefox, etc.) should have
 its own module in this package.
 """
 
-from typing import Type, Dict, TypeVar, Any
-from ..base import BaseBrowser
+from typing import Type, Dict, TypeVar, Any, Optional, Union
+from core.browser.base import BaseBrowser
 
 # Type variable for browser driver classes
 T = TypeVar('T', bound='BaseBrowserDriver')
@@ -91,7 +91,7 @@ class BaseBrowserDriver(BaseBrowser):
 
 # Import browser drivers to register them
 # This must be at the end of the file to avoid circular imports
-from .chrome.browser import ChromeBrowser as ChromeDriver  # noqa: F401
+from .chrome import ChromeBrowser as ChromeDriver  # noqa: F401
 
 __all__ = [
     'BaseBrowserDriver',

@@ -156,24 +156,17 @@ class Browser(BaseBrowser):
         self.stop()
     
     def __getattr__(self, name):
-        """Delegate attribute access to the underlying driver.
-        
-        This allows direct access to the WebDriver methods through the Browser instance.
-        """
-        # Prevent recursion by checking if the attribute exists on the Browser class first
-        if name in self.__dict__ or name in self.__class__.__dict__:
-            return object.__getattribute__(self, name)
+        """Delegate attribute access to the underlying driver."""
+        # Don't try to delegate special methods
+        if name.startswith('__') and name.endswith('__'):
+            raise AttributeError(name)
             
-        if self._driver is None:
-            self.start()
-            if self._driver is None:  # If still None after start
-                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-                
-        try:
+        # If we have a driver, try to get the attribute from it
+        if self._driver is not None:
             return getattr(self._driver, name)
-        except AttributeError:
-            # If the attribute doesn't exist on the driver, raise a more helpful error
-            raise AttributeError(f"'{self.__class__.__name__}' and its driver have no attribute '{name}'")
+            
+        # If we get here, the attribute wasn't found
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
 
 # For backward compatibility

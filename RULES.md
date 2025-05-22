@@ -54,27 +54,27 @@
    - Use pytest markers to categorize tests
    - Document test dependencies and requirements
 
-9. **Documentation**
+8. **Documentation**
    - Keep documentation up-to-date
    - Include examples for common use cases
    - Document all public APIs
 
-8. **Dependencies**
+9. **Dependencies**
    - Minimize external dependencies
    - Pin all dependency versions
    - Document all dependencies and their purposes
 
-9. **Error Handling**
+10. **Error Handling**
    - Fail fast with clear error messages
    - Include context in error messages
    - Provide recovery options when possible
 
-10. **Performance**
+11. **Performance**
    - Optimize for both development speed and runtime performance
    - Profile and optimize critical paths
    - Be mindful of resource usage
 
-11. **Security**
+12. **Security**
    - Never log sensitive information
    - Validate all inputs
    - Follow security best practices for web automation

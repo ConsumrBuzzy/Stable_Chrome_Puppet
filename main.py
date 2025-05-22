@@ -177,14 +177,14 @@ def main() -> int:
         config = ChromeConfig(
             headless=args.headless,
             window_size=window_size,
-            chrome_args=[
+            extra_args=[
                 '--disable-notifications',
                 '--disable-infobars',
             ]
         )
         
         logger.info(f"Initializing Chrome browser (headless={args.headless})...")
-        browser = Browser(config=config)
+        browser = ChromeBrowser(config=config)
         
         try:
             # Start the browser
@@ -193,16 +193,16 @@ def main() -> int:
             
             # Navigate to the URL
             logger.info(f"Navigating to {args.url}...")
-            browser.navigate_to(args.url)
+            browser.driver.get(args.url)
             
             # Get page information
-            current_url = browser.get_current_url()
+            current_url = browser.driver.current_url
             logger.info(f"Current URL: {current_url}")
             
             if args.screenshot:
                 screenshot_file = 'screenshot.png'
                 logger.info(f"Taking screenshot: {screenshot_file}")
-                browser.take_screenshot(screenshot_file)
+                browser.driver.save_screenshot(screenshot_file)
             
             # Keep the browser open for the specified duration
             logger.info(f"Browser will close in {args.timeout} seconds...")

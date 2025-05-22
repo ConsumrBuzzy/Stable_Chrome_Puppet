@@ -19,6 +19,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.webdriver import WebDriver as ChromeWebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.remote.shadowroot import ShadowRoot
 
 from core.browser.base import BaseBrowser
 from core.browser.config.base import BrowserConfig

@@ -4,6 +4,8 @@ Core functionality for Chrome Puppet.
 This module provides the main browser automation capabilities for Chrome Puppet.
 """
 
+__version__ = "0.2.0"
+
 # Lazy imports to prevent circular dependencies
 ChromeDriver = None
 ChromeConfig = None

@@ -7,20 +7,27 @@ It includes Chrome-specific implementations, element handling, navigation, and s
 
 # Import key components to make them available at the package level
 from .base import BaseBrowser, retry_on_failure
-from .drivers.chrome import ChromeBrowser
-from .drivers.base_driver import BaseBrowserDriver
-from .exceptions import (
-    BrowserError,
-    BrowserNotInitializedError,
-    NavigationError,
-    ElementNotFoundError,
-    ElementNotInteractableError,
-    TimeoutError,
-    ScreenshotError
-)
+
+# Lazy import to avoid circular dependencies
+ChromeBrowser = None
+BaseBrowserDriver = None
+
+def _import_chrome_browser():
+    global ChromeBrowser
+    if ChromeBrowser is None:
+        from .drivers.chrome import ChromeBrowser as CB
+        ChromeBrowser = CB
+    return ChromeBrowser
+
+def _import_base_driver():
+    global BaseBrowserDriver
+    if BaseBrowserDriver is None:
+        from .drivers.base_driver import BaseDriver as BD
+        BaseBrowserDriver = BD
+    return BaseBrowserDriver
 
 # For backward compatibility
-Browser = ChromeBrowser
+Browser = _import_chrome_browser()
 
 # Import ChromeBrowser as ChromeDriver for backward compatibility
 def get_chrome_driver():
@@ -28,8 +35,22 @@ def get_chrome_driver():
     
     This is kept for backward compatibility. Use ChromeBrowser instead.
     """
-    from .drivers.chrome import ChromeBrowser
-    return ChromeBrowser
+    return _import_chrome_browser()
+
+# Import exceptions
+try:
+    from .exceptions import (
+        BrowserError,
+        BrowserNotInitializedError,
+        NavigationError,
+        ElementNotFoundError,
+        ElementNotInteractableError,
+        TimeoutError,
+        ScreenshotError
+    )
+except ImportError:
+    # Handle case where exceptions aren't available yet
+    pass
 
 # Version of the browser module
 __version__ = '0.2.0'

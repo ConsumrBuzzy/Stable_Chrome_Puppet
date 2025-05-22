@@ -5,7 +5,8 @@ This module defines the abstract base class that all browser drivers must implem
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, TypeVar, Generic
 
-from ..types import BrowserConfig, BrowserType, BrowserOptions, BrowserService
+from core.config import ChromeConfig
+from ..types import BrowserType, WindowSize
 
 T = TypeVar('T', bound='BaseDriver')
 
@@ -16,15 +17,15 @@ class BaseDriver(ABC, Generic[T]):
     This class defines the interface that all browser drivers must implement.
     """
     
-    def __init__(self, config: Optional[BrowserConfig] = None) -> None:
+    def __init__(self, config: Optional[ChromeConfig] = None) -> None:
         """Initialize the browser driver with optional configuration.
         
         Args:
             config: Configuration for the browser instance.
         """
-        self.config = config or BrowserConfig()
-        self._service: Optional[BrowserService] = None
-        self._options: Optional[BrowserOptions] = None
+        self.config = config or ChromeConfig()
+        self._service: Optional[Any] = None
+        self._options: Optional[Any] = None
         self._is_running: bool = False
     
     @property
@@ -59,7 +60,7 @@ class BaseDriver(ABC, Generic[T]):
         pass
     
     @abstractmethod
-    def get_options(self) -> BrowserOptions:
+    def get_options(self) -> Any:
         """Get the browser options.
         
         Returns:
@@ -68,7 +69,7 @@ class BaseDriver(ABC, Generic[T]):
         pass
     
     @abstractmethod
-    def get_service(self) -> BrowserService:
+    def get_service(self) -> Any:
         """Get the browser service instance.
         
         Returns:

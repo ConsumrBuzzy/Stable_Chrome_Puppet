@@ -4,11 +4,17 @@ This module provides a high-level interface for browser automation with support
 for multiple browser backends through a driver-based architecture.
 """
 import logging
-from typing import Any, Optional, Type, Union
+import time
+from typing import Any, Optional, Type, Union, Dict, List, Tuple
 
 from .drivers import get_driver_class, BaseBrowserDriver
 from .base import BaseBrowser
-from .exceptions import BrowserError, BrowserNotInitializedError
+from .exceptions import (
+    BrowserError, 
+    BrowserNotInitializedError,
+    NavigationError,
+    ScreenshotError
+)
 
 
 class Browser(BaseBrowser):
@@ -30,10 +36,14 @@ class Browser(BaseBrowser):
             from .config import BrowserConfig
             config = BrowserConfig()
             
+        # Initialize the base class with driver=None initially
         super().__init__(config, logger)
         self._driver = None
         self._driver_class: Optional[Type[BaseBrowserDriver]] = None
         self._initialize_driver()
+        
+        # Set the driver on the base class after initialization
+        super().__setattr__('driver', self._driver)
     
     def _initialize_driver(self) -> None:
         """Initialize the browser driver based on configuration."""
@@ -51,14 +61,80 @@ class Browser(BaseBrowser):
     def driver(self) -> Any:
         """Get the underlying driver instance."""
         if self._driver is None:
-            raise BrowserNotInitializedError("Browser driver not initialized. Call start() first.")
+            self.start()
         return self._driver.driver if hasattr(self._driver, 'driver') else self._driver
+        
+    @driver.setter
+    def driver(self, value: Any) -> None:
+        """Set the underlying driver instance.
+        
+        This is primarily for internal use. Prefer using the start() method.
+        """
+        self._driver = value
     
     def start(self) -> None:
         """Start the browser."""
         if self._driver is None:
             self._initialize_driver()
         self._driver.start()
+        
+    def navigate_to(self, url: str, wait_time: Optional[float] = None) -> bool:
+        """Navigate to the specified URL.
+        
+        Args:
+            url: The URL to navigate to
+            wait_time: Optional time to wait for page load
+            
+        Returns:
+            bool: True if navigation was successful
+        """
+        if self._driver is None:
+            self.start()
+        return self._driver.navigate_to(url, wait_time)
+        
+    def get_page_source(self) -> str:
+        """Get the current page source.
+        
+        Returns:
+            str: The page source HTML
+        """
+        if self._driver is None:
+            raise BrowserNotInitializedError("Browser is not initialized. Call start() first.")
+        return self._driver.get_page_source()
+        
+    def get_current_url(self) -> str:
+        """Get the current URL.
+        
+        Returns:
+            str: The current URL
+        """
+        if self._driver is None:
+            raise BrowserNotInitializedError("Browser is not initialized. Call start() first.")
+        return self._driver.get_current_url()
+        
+    def take_screenshot(self, file_path: str, full_page: bool = False) -> bool:
+        """Take a screenshot of the current page.
+        
+        Args:
+            file_path: Path to save the screenshot
+            full_page: If True, capture the full page (not supported in all browsers)
+            
+        Returns:
+            bool: True if screenshot was successful
+        """
+        if self._driver is None:
+            raise BrowserNotInitializedError("Browser is not initialized. Call start() first.")
+        return self._driver.take_screenshot(file_path, full_page)
+        
+    def is_running(self) -> bool:
+        """Check if the browser is running.
+        
+        Returns:
+            bool: True if the browser is running
+        """
+        if self._driver is None:
+            return False
+        return self._driver.is_running()
     
     def stop(self) -> None:
         """Stop the browser and clean up resources."""
@@ -80,10 +156,24 @@ class Browser(BaseBrowser):
         self.stop()
     
     def __getattr__(self, name):
-        """Delegate attribute access to the underlying driver."""
+        """Delegate attribute access to the underlying driver.
+        
+        This allows direct access to the WebDriver methods through the Browser instance.
+        """
+        # Prevent recursion by checking if the attribute exists on the Browser class first
+        if name in self.__dict__ or name in self.__class__.__dict__:
+            return object.__getattribute__(self, name)
+            
         if self._driver is None:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-        return getattr(self._driver, name)
+            self.start()
+            if self._driver is None:  # If still None after start
+                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+                
+        try:
+            return getattr(self._driver, name)
+        except AttributeError:
+            # If the attribute doesn't exist on the driver, raise a more helpful error
+            raise AttributeError(f"'{self.__class__.__name__}' and its driver have no attribute '{name}'")
 
 
 # For backward compatibility

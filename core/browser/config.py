@@ -79,5 +79,8 @@ class ChromeConfig(BrowserConfig):
                 self.chrome_args.append(arg)
 
 
+# Default configuration
+DEFAULT_CONFIG = ChromeConfig()
+
 # For backward compatibility
 BrowserConfig = ChromeConfig

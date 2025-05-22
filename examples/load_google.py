@@ -153,9 +153,9 @@ def main():
         # Configure Chrome with profile settings
         config = ChromeConfig(
             headless=False,  # Show browser window
+            window_size=(1920, 1080),  # Set explicit window size
             chrome_arguments=[
                 '--disable-notifications',
-                '--start-maximized',
                 '--no-first-run',
                 '--no-default-browser-check',
                 '--disable-blink-features=AutomationControlled',
@@ -163,7 +163,21 @@ def main():
                 '--disable-gpu',
                 '--disable-software-rasterizer',
                 '--disable-dev-shm-usage',
+                '--disable-browser-side-navigation',
                 '--no-sandbox',
+                '--disable-features=VizDisplayCompositor',
+                '--disable-background-networking',
+                '--disable-client-side-phishing-detection',
+                '--disable-component-update',
+                '--disable-hang-monitor',
+                '--disable-popup-blocking',
+                '--disable-prompt-on-repost',
+                '--disable-sync',
+                '--disable-translate',
+                '--metrics-recording-only',
+                '--safebrowsing-disable-auto-update',
+                '--disable-web-security',  # Only for testing, remove in production
+                '--allow-running-insecure-content',  # Only for testing, remove in production
                 f'--profile-directory={selected_profile["name"]}',
                 f'--user-data-dir={os.path.dirname(selected_profile["path"])}'
             ]

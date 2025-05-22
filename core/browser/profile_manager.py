@@ -44,16 +44,60 @@ class ProfileManager:
         "Subresource Filter", "Webstore Downloads", "ZxcvbnData"
     ]
     
-    def __init__(self, user_data_dir: Optional[str] = None):
-        """Initialize the ProfileManager.
+    def __init__(self, user_data_dir: Optional[Union[str, Path]] = None):
+        """Initialize the profile manager.
         
         Args:
-            user_data_dir: Optional path to the Chrome user data directory.
-                          If not provided, uses the default Chrome user data directory.
+            user_data_dir: Optional custom path to the user data directory.
+                         If not provided, will search common locations.
         """
-        self.user_data_dir = user_data_dir or self.get_default_user_data_dir()
+        self.logger = logging.getLogger(__name__)
+        self.user_data_dir = self._resolve_user_data_dir(user_data_dir)
         self.profiles: Dict[str, Dict[str, Any]] = {}
         self._discover_profiles()
+    
+    def _resolve_user_data_dir(self, user_data_dir: Optional[Union[str, Path]] = None) -> Path:
+        """Resolve the Chrome user data directory from various possible locations.
+        
+        Args:
+            user_data_dir: Explicitly provided user data directory
+            
+        Returns:
+            Path to the Chrome user data directory
+            
+        Raises:
+            FileNotFoundError: If no valid Chrome user data directory could be found
+        """
+        # If a specific directory was provided, use it
+        if user_data_dir:
+            path = Path(user_data_dir).expanduser().absolute()
+            if path.exists() and (path / 'Local State').exists():
+                self.logger.info(f"Using provided Chrome user data directory: {path}")
+                return path
+            else:
+                self.logger.warning(f"Provided Chrome user data directory not found or invalid: {path}")
+        
+        # Check known locations
+        for data_dir in self.CHROME_DATA_DIRS:
+            try:
+                data_dir = data_dir.expanduser().absolute()
+                if data_dir.exists() and (data_dir / 'Local State').exists():
+                    self.logger.info(f"Found Chrome user data directory: {data_dir}")
+                    return data_dir
+            except Exception as e:
+                self.logger.debug(f"Error checking Chrome data directory {data_dir}: {e}")
+        
+        # If we get here, no valid directory was found
+        error_msg = (
+            "Could not find Chrome user data directory. "
+            "Please specify the path to your Chrome user data directory manually.\n"
+            "Common locations:\n"
+            "- Windows: %LOCALAPPDATA%\\Google\\Chrome\\User Data\n"
+            "- Linux: ~/.config/google-chrome\n"
+            "- macOS: ~/Library/Application Support/Google/Chrome"
+        )
+        self.logger.error(error_msg)
+        raise FileNotFoundError(error_msg)
     
     @staticmethod
     def get_default_user_data_dir() -> str:

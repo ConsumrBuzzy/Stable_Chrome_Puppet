@@ -22,7 +22,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.remote.shadowroot import ShadowRoot
 
 from core.browser.base import BaseBrowser
-from core.browser.config.base import BrowserConfig
+from core.config.base import BrowserConfig
 from core.browser.exceptions import (
     BrowserError,
     BrowserNotInitializedError,

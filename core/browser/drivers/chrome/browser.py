@@ -20,7 +20,8 @@ from selenium.webdriver.chrome.webdriver import WebDriver as ChromeWebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
-from core.browser.drivers.base import BaseBrowser, BrowserConfig
+from core.browser.base import BaseBrowser
+from core.browser.config import BrowserConfig
 from core.browser.drivers.exceptions import (
     BrowserError,
     BrowserNotInitializedError,

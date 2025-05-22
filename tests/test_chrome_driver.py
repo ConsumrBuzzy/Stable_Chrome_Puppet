@@ -41,8 +41,11 @@ class TestChromeDriver:
     """Test cases for ChromeDriver class."""
     
     @pytest.fixture
-    def chrome_config(self) -> ChromeConfig:
+    def chrome_config(self) -> 'core.ChromeConfig':
         """Create a ChromeConfig fixture for testing."""
+        ChromeConfig = get_chrome_config()
+        DriverConfig = get_driver_config()
+        
         return ChromeConfig(
             headless=True,
             window_size=(1024, 768),

@@ -111,6 +111,14 @@ def main() -> int:
     """
     args = parse_arguments()
     
+    # If no URL provided as argument, prompt the user
+    if args.url is None:
+        args.url = prompt_for_url()
+    # Validate the provided URL
+    elif not is_valid_url(args.url):
+        print(f"Warning: '{args.url}' is not a valid URL. Defaulting to Google.")
+        args.url = 'https://www.google.com'
+    
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
     

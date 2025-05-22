@@ -166,16 +166,25 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
         Returns:
             ChromeService: Configured Chrome service instance
         """
-        driver_config = getattr(self.config, 'driver_config', DriverConfig())
+        driver_config = getattr(self.config, 'driver_config', {})
         
         # Set up service arguments
-        service_args = driver_config.service_args or []
+        service_args = getattr(driver_config, 'service_args', [])
+        log_path = getattr(driver_config, 'service_log_path', None)
+        
+        # Get the driver path, use ChromeDriverManager if not provided
+        driver_path = None
+        if hasattr(driver_config, 'driver_path') and driver_config.driver_path:
+            driver_path = driver_config.driver_path
+        else:
+            # Use ChromeDriverManager to handle driver installation
+            driver_path = ChromeDriverManager().install()
         
         # Create service with configured options
         service = ChromeService(
-            executable_path=driver_config.driver_path or ChromeDriverManager().install(),
+            executable_path=driver_path,
             service_args=service_args,
-            log_path=driver_config.service_log_path
+            log_path=log_path
         )
         
         return service
@@ -245,10 +254,78 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
             bool: True if the browser is running, False otherwise
         """
         try:
-            return self.driver is not None and self.driver.service.is_connectable()
-        except Exception:
+            # Try to get the current URL to check if the browser is still responsive
+            if self.driver is None:
+                return False
+                
+            # Check if the browser is still responsive
+            _ = self.driver.current_url
+            return True
+            
+        except Exception as e:
+            self._logger.debug(f"Browser is not running: {e}")
             return False
-    
+            
+    def start(self) -> None:
+        """Start the Chrome browser."""
+        if self.driver is not None:
+            self._logger.warning("Browser is already running")
+            return
+        
+        try:
+            # Set up Chrome service and options
+            self._service = self._create_service()
+            
+            # Initialize Chrome WebDriver
+            self.driver = webdriver.Chrome(
+                service=self._service,
+                options=self._options
+            )
+            
+            # Configure timeouts
+            if hasattr(self.config, 'implicit_wait'):
+                self.driver.implicitly_wait(self.config.implicit_wait)
+                
+            if hasattr(self.config, 'page_load_timeout'):
+                self.driver.set_page_load_timeout(self.config.page_load_timeout)
+                
+            if hasattr(self.config, 'script_timeout'):
+                self.driver.set_script_timeout(self.config.script_timeout)
+                
+            self._logger.info("Chrome browser started successfully")
+            
+        except Exception as e:
+            self._logger.error(f"Failed to start Chrome browser: {e}")
+            self._cleanup_resources()
+            raise BrowserError(f"Failed to start Chrome browser: {e}") from e
+            
+    def stop(self) -> None:
+        """Stop the Chrome browser and clean up resources."""
+        if self.driver is None:
+            self._logger.warning("Browser is not running")
+            return
+            
+        try:
+            self._logger.info("Stopping Chrome browser...")
+            self.driver.quit()
+            self._logger.info("Chrome browser stopped")
+        except Exception as e:
+            self._logger.error(f"Error stopping Chrome browser: {e}")
+            raise
+        finally:
+            self.driver = None
+            self._cleanup_resources()
+            
+    def _cleanup_resources(self) -> None:
+        """Clean up any resources used by the browser."""
+        if self._service is not None:
+            try:
+                self._service.stop()
+            except Exception as e:
+                self._logger.error(f"Error stopping Chrome service: {e}")
+            finally:
+                self._service = None
+            
     def __enter__(self):
         """Context manager entry."""
         self.start()

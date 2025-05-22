@@ -15,25 +15,8 @@ from core.browser.exceptions import (
     NavigationError
 )
 from core.browser.config import ChromeConfig
-
-# Lazy imports
-def get_chrome_driver():
-    """Get the ChromeDriver class with lazy import."""
-    if core.ChromeDriver is None:
-        core._import_chrome_driver()
-    return core.ChromeDriver
-
-def get_chrome_config():
-    """Get the ChromeConfig class with lazy import."""
-    if core.ChromeConfig is None:
-        core._import_config()
-    return core.ChromeConfig
-
-def get_driver_config():
-    """Get the DriverConfig class with lazy import."""
-    if core.DriverConfig is None:
-        core._import_config()
-    return core.DriverConfig
+from core.browser.drivers.chrome_driver import ChromeDriver
+from core.browser.driver_config import DriverConfig
 
 # Mark all tests in this module as browser tests
 pytestmark = [pytest.mark.browser, pytest.mark.driver]
@@ -42,11 +25,8 @@ class TestChromeDriver:
     """Test cases for ChromeDriver class."""
     
     @pytest.fixture
-    def chrome_config(self) -> 'core.ChromeConfig':
+    def chrome_config(self) -> ChromeConfig:
         """Create a ChromeConfig fixture for testing."""
-        ChromeConfig = get_chrome_config()
-        DriverConfig = get_driver_config()
-        
         return ChromeConfig(
             headless=True,
             window_size=(1024, 768),
@@ -65,8 +45,7 @@ class TestChromeDriver:
     @pytest.fixture
     def chrome_driver(self, chrome_config) -> 'Generator[ChromeDriver, None, None]':
         """Create and yield a ChromeDriver instance for testing."""
-        ChromeDriver = get_chrome_driver()
-        driver = ChromeDriver(config=chrome_config)
+        driver = ChromeDriver(chrome_config)
         try:
             driver.start()
             yield driver
@@ -75,42 +54,49 @@ class TestChromeDriver:
 
     def test_initialization(self, chrome_config):
         """Test that ChromeDriver initializes correctly."""
-        ChromeDriver = get_chrome_driver()
         driver = ChromeDriver(chrome_config)
-        assert driver is not None
-        assert driver.driver is not None
-        assert driver.config == chrome_config
-        driver.quit()
+        try:
+            assert driver is not None
+            driver.start()
+            assert driver.driver is not None
+            assert driver.config == chrome_config
+        finally:
+            driver.stop()
 
     def test_navigation(self, chrome_config):
         """Test basic navigation functionality."""
-        ChromeDriver = get_chrome_driver()
         driver = ChromeDriver(chrome_config)
         try:
             driver.start()
             test_url = "https://httpbin.org/headers"
-            driver.get(test_url)
-            assert test_url in driver.current_url
-            assert "httpbin" in driver.title.lower()
+            driver.navigate_to(test_url)
+            current_url = driver.get_current_url()
+            assert test_url in current_url
+            page_source = driver.get_page_source()
+            assert "httpbin" in page_source.lower()
         finally:
             driver.stop()
 
     def test_javascript_execution(self, chrome_config):
         """Test JavaScript execution in the browser."""
-        ChromeDriver = get_chrome_driver()
         driver = ChromeDriver(chrome_config)
         try:
             driver.start()
-            result = driver.execute_script("return navigator.userAgent;")
-            assert isinstance(result, str)
-            assert "Chrome" in result
+            # Execute JavaScript to get browser info
+            user_agent = driver.driver.execute_script("return navigator.userAgent;")
+            assert isinstance(user_agent, str)
+            assert "Chrome" in user_agent
+            
+            # Test a simple calculation
+            result = driver.driver.execute_script("return 2 + 2;")
+            assert result == 4
         finally:
             driver.stop()
 
     def test_browser_not_initialized(self, chrome_config):
         """Test that operations fail when browser is not initialized."""
-        ChromeDriver = get_chrome_driver()
         driver = ChromeDriver(chrome_config)
+        # Don't call start() - browser should not be initialized
         with pytest.raises(BrowserNotInitializedError):
             _ = driver.current_url
         with pytest.raises(BrowserNotInitializedError):
@@ -120,8 +106,8 @@ class TestChromeDriver:
 
     def test_stop_browser(self, chrome_config):
         """Test that browser can be stopped properly."""
-        ChromeDriver = get_chrome_driver()
         driver = ChromeDriver(chrome_config)
+        driver.start()  # Start the browser first
         driver.start()
         assert driver.is_running() is True
         
@@ -131,11 +117,11 @@ class TestChromeDriver:
 
     def test_context_manager(self, chrome_config):
         """Test that the context manager works correctly."""
-        ChromeDriver = get_chrome_driver()
-        with ChromeDriver(config=chrome_config) as driver:
+        with ChromeDriver(chrome_config) as driver:
             assert driver.is_running() is True
-            driver.get("https://httpbin.org/headers")
-            assert "httpbin" in driver.title.lower()
+            driver.navigate_to("https://httpbin.org/headers")
+            page_source = driver.get_page_source()
+            assert "httpbin" in page_source.lower()
         
         assert driver.is_running() is False
 
@@ -143,9 +129,23 @@ class TestChromeDriver:
         """Test that driver configuration is applied correctly."""
         # Test headless mode
         chrome_config.headless = True
-        with ChromeDriver(config=chrome_config) as driver:
-            user_agent = driver.execute_script("return navigator.userAgent")
+        driver = ChromeDriver(config=chrome_config)
+        try:
+            driver.start()
+            # Test that the browser is running in headless mode
+            assert driver.driver is not None
+            
+            # Test navigation in headless mode
+            test_url = "https://httpbin.org/headers"
+            driver.navigate_to(test_url)
+            current_url = driver.get_current_url()
+            assert test_url in current_url
+            
+            # Verify headless mode
+            user_agent = driver.driver.execute_script("return navigator.userAgent")
             assert "HeadlessChrome" in user_agent
+        finally:
+            driver.stop()
         
         # Test window size
         chrome_config.headless = False

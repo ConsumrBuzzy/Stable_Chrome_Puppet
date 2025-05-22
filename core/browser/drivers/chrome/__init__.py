@@ -5,9 +5,9 @@ framework. It uses Selenium WebDriver under the hood to control a Chrome browser
 """
 from typing import Optional, Type, TypeVar
 
-from core.browser.config import ChromeConfig
-from core.browser.drivers.base import BaseDriver
+from ..base_driver import BaseDriver
 from .browser import ChromeBrowser
+from .config import ChromeConfig
 
 # Re-export the ChromeBrowser class
 __all__ = ['ChromeBrowser', 'create_driver']

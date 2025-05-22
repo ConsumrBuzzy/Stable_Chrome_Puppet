@@ -129,6 +129,7 @@ class ProfileManager:
             - display_name: User-friendly name for the profile
             - last_modified: Timestamp of when the profile was last modified
             - profile_type: Type of profile (user, development, system)
+            - account_info: Additional account information if available
         """
         try:
             # Get basic file info
@@ -140,9 +141,11 @@ class ProfileManager:
                 'path': str(profile_path.absolute()),
                 'size_mb': self._get_directory_size(profile_path) / (1024 * 1024),
                 'email': None,
+                'emails': [],  # List to store all found emails
                 'display_name': None,
                 'last_modified': stat_info.st_mtime,
-                'profile_type': self._get_profile_type(profile_path.name)
+                'profile_type': self._get_profile_type(profile_path.name),
+                'account_info': {}
             }
             
             # Set a default display name based on the profile directory name
@@ -161,30 +164,96 @@ class ProfileManager:
             prefs_file = profile_path / 'Preferences'
             if prefs_file.exists() and prefs_file.stat().st_size > 0:
                 try:
-                    with open(prefs_file, 'r', encoding='utf-8') as f:
-                        prefs = json.load(f)
+                    with open(prefs_file, 'r', encoding='utf-8', errors='replace') as f:
+                        try:
+                            prefs = json.load(f)
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"Failed to parse Preferences file {prefs_file}: {e}")
+                            prefs = {}
                         
-                    # Get email and name from sync account info
-                    if 'profile' in prefs and 'info_cache' in prefs['profile']:
-                        for cache in prefs['profile']['info_cache'].values():
-                            if 'email' in cache and cache['email']:
-                                info['email'] = str(cache['email'])
-                            if 'name' in cache and cache['name'] and not info.get('display_name'):
-                                info['display_name'] = str(cache['name'])
-                    
-                    # Get display name from profile info if not set yet
-                    if not info.get('display_name') and 'profile' in prefs:
-                        profile_name = prefs['profile'].get('name')
-                        if profile_name and not str(profile_name).startswith('Profile '):
-                            info['display_name'] = str(profile_name)
-                    
+                        # Get email and name from sync account info
+                        if 'profile' in prefs and 'info_cache' in prefs['profile']:
+                            for account_id, cache in prefs['profile']['info_cache'].items():
+                                account_email = cache.get('email')
+                                if account_email:
+                                    account_email = str(account_email)
+                                    info['emails'].append(account_email)
+                                    if not info['email']:  # Set the first email as primary
+                                        info['email'] = account_email
+                                
+                                # Get account name if available
+                                if 'name' in cache and cache['name']:
+                                    name = str(cache['name'])
+                                    if not info.get('display_name') or info['display_name'].startswith(('Profile ', 'Default')):
+                                        info['display_name'] = name
+                                    info['account_info'][account_id] = {
+                                        'email': account_email,
+                                        'name': name,
+                                        'gaia': cache.get('gaia'),
+                                        'is_consented_primary_account': cache.get('is_consented_primary_account', False)
+                                    }
+                        
+                        # Get display name from profile info if not set yet
+                        if not info.get('display_name') and 'profile' in prefs:
+                            profile_name = prefs['profile'].get('name')
+                            if profile_name and not str(profile_name).startswith('Profile '):
+                                info['display_name'] = str(profile_name)
+                        
+                        # Check for accounts in the account tracker
+                        if 'account_tracker' in prefs:
+                            accounts = prefs.get('account_tracker', {})
+                            for account_id, account in accounts.items():
+                                if isinstance(account, dict) and 'account_id' in account:
+                                    email = account.get('email')
+                                    if email and email not in info['emails']:
+                                        info['emails'].append(email)
+                                        if not info['email']:
+                                            info['email'] = email
+                
                 except Exception as e:
-                    logger.debug(f"Error reading profile preferences for {profile_path.name}: {e}", exc_info=True)
+                    logger.warning(f"Error reading profile preferences for {profile_path.name}: {e}", exc_info=True)
+            
+            # Check for additional account information in other files
+            try:
+                # Check Web Data database for more account info
+                web_data_path = profile_path / 'Web Data'
+                if web_data_path.exists():
+                    try:
+                        import sqlite3
+                        conn = sqlite3.connect(f'file:{web_data_path}?mode=ro', uri=True)
+                        cursor = conn.cursor()
+                        
+                        # Check autofill profiles for names and emails
+                        try:
+                            cursor.execute('SELECT name, email FROM autofill_profiles')
+                            for name, email in cursor.fetchall():
+                                if email and email not in info['emails']:
+                                    info['emails'].append(email)
+                                    if not info['email']:
+                                        info['email'] = email
+                                if name and not info.get('display_name'):
+                                    info['display_name'] = name
+                        except sqlite3.OperationalError:
+                            pass  # Table might not exist
+                            
+                        conn.close()
+                    except Exception as e:
+                        logger.debug(f"Could not read Web Data for {profile_path.name}: {e}")
+            except Exception as e:
+                logger.debug(f"Error checking Web Data for {profile_path.name}: {e}")
             
             # Ensure all string fields are properly encoded
             for field in ['name', 'display_name', 'email', 'path']:
                 if field in info and info[field] is not None:
-                    info[field] = str(info[field])
+                    if isinstance(info[field], str):
+                        info[field] = info[field].encode('utf-8', 'replace').decode('utf-8')
+            
+            # Clean up emails list
+            info['emails'] = [str(e) for e in info['emails'] if e and isinstance(e, str)]
+            
+            # If we have emails but no display name, use the first part of the first email
+            if not info.get('display_name') and info['emails']:
+                info['display_name'] = info['emails'][0].split('@')[0].replace('.', ' ').title()
             
             return info
             

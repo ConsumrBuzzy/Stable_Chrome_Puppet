@@ -25,46 +25,76 @@ def get_default_chrome_user_data_dir() -> str:
         return os.path.expanduser('~/.config/google-chrome')
 
 def list_chrome_profiles(user_data_dir: str) -> list[str]:
-    """List all available Chrome profiles in the user data directory."""
+    """List all available Chrome profiles in the user data directory.
+    
+    Args:
+        user_data_dir: Path to the Chrome user data directory.
+        
+    Returns:
+        List of profile names.
+    """
     profiles = []
     profiles_path = Path(user_data_dir)
     
     if not profiles_path.exists():
+        print(f"\nWarning: Chrome user data directory not found: {user_data_dir}")
         return []
     
     # Look for profile directories
     for item in profiles_path.iterdir():
-        if item.is_dir():
-            if item.name == 'System Profile':
-                continue
-            if item.name == 'Profile ' + item.name.split()[-1]:  # Matches "Profile 1", "Profile 2", etc.
-                profiles.append(item.name)
-            elif item.name == 'Default':
-                profiles.insert(0, item.name)  # Put Default profile first
+        if item.is_dir() and item.name not in ["System Profile", "Guest Profile"]:
+            profiles.append(item.name)
+    
+    # Print all available profiles
+    if profiles:
+        print("\nAvailable Chrome profiles:")
+        for i, profile in enumerate(sorted(profiles), 1):
+            print(f"  {i}. {profile}")
+    else:
+        print("\nNo Chrome profiles found in:")
+        print(f"  {user_data_dir}")
     
     return profiles
 
 def select_profile_interactively(profiles: list[str]) -> str:
-    """Let the user select a profile from the list."""
+    """Let the user select a profile from the list.
+    
+    Args:
+        profiles: List of available profile names.
+        
+    Returns:
+        Selected profile name or "Default" if no selection made.
+    """
     if not profiles:
-        print("No Chrome profiles found. Using 'Default' profile.")
-        return 'Default'
+        print("\nNo profiles available. Using 'Default' profile.")
+        return "Default"
+    
+    # Sort profiles for consistent ordering
+    sorted_profiles = sorted(profiles)
     
     print("\nAvailable Chrome profiles:")
-    for i, profile in enumerate(profiles, 1):
-        print(f"{i}. {profile}")
+    for i, profile in enumerate(sorted_profiles, 1):
+        print(f"  {i}. {profile}")
+    
+    print("\n  Enter profile number or press Enter for Default")
+    print("  --------------------------------------------")
     
     while True:
         try:
-            selection = input("\nEnter profile number (or press Enter for Default): ").strip()
-            if not selection:
-                return 'Default'
-            selection = int(selection)
-            if 1 <= selection <= len(profiles):
-                return profiles[selection - 1]
-            print(f"Please enter a number between 1 and {len(profiles)}")
+            choice = input("\n  Your choice: ").strip()
+            if not choice:
+                print("\nUsing 'Default' profile.")
+                return "Default"
+            
+            index = int(choice) - 1
+            if 0 <= index < len(sorted_profiles):
+                selected = sorted_profiles[index]
+                print(f"\nSelected profile: {selected}")
+                return selected
+                
+            print(f"  Please enter a number between 1 and {len(sorted_profiles)}")
         except ValueError:
-            print("Please enter a valid number")
+            print("  Please enter a valid number or press Enter for Default")
 
 def main():
     import argparse

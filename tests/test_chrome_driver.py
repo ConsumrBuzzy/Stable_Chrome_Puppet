@@ -14,6 +14,7 @@ from core.browser.exceptions import (
     BrowserNotInitializedError,
     NavigationError
 )
+from core.browser.config import ChromeConfig
 
 # Lazy imports
 def get_chrome_driver():

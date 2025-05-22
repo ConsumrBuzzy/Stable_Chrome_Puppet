@@ -16,8 +16,12 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
-from core.browser.config import ChromeConfig, DriverConfig
-from core.browser.drivers.chrome_driver import ChromeDriver
+from core import _import_config, _import_chrome_driver
+
+# Initialize the config and driver using lazy imports
+ChromeConfig, DEFAULT_CONFIG = _import_config()
+ChromeDriver = _import_chrome_driver()
+DriverConfig = ChromeConfig.DriverConfig
 
 # Set up test directories
 TEST_DIR = Path(__file__).parent

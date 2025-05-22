@@ -98,6 +98,68 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
             width, height = self.config.window_size
             self._options.add_argument(f'--window-size={width},{height}')
     
+    def navigate_to(self, url: str, wait_time: Optional[float] = None) -> bool:
+        """Navigate to the specified URL.
+        
+        Args:
+            url: The URL to navigate to
+            wait_time: Optional time to wait for page load
+            
+        Returns:
+            bool: True if navigation was successful
+        """
+        if not self.driver:
+            raise BrowserNotInitializedError("Browser is not initialized. Call start() first.")
+        
+        try:
+            self.driver.get(url)
+            if wait_time:
+                time.sleep(wait_time)
+            return True
+        except Exception as e:
+            self._logger.error(f"Failed to navigate to {url}: {e}")
+            raise NavigationError(f"Failed to navigate to {url}: {e}") from e
+    
+    def get_page_source(self) -> str:
+        """Get the current page source.
+        
+        Returns:
+            str: The page source HTML
+        """
+        if not self.driver:
+            raise BrowserNotInitializedError("Browser is not initialized. Call start() first.")
+        return self.driver.page_source
+    
+    def get_current_url(self) -> str:
+        """Get the current URL.
+        
+        Returns:
+            str: The current URL
+        """
+        if not self.driver:
+            raise BrowserNotInitializedError("Browser is not initialized. Call start() first.")
+        return self.driver.current_url
+    
+    def take_screenshot(self, file_path: str, full_page: bool = False) -> bool:
+        """Take a screenshot of the current page.
+        
+        Args:
+            file_path: Path to save the screenshot
+            full_page: If True, capture the full page (not supported in all browsers)
+            
+        Returns:
+            bool: True if screenshot was successful
+        """
+        if not self.driver:
+            raise BrowserNotInitializedError("Browser is not initialized. Call start() first.")
+        
+        try:
+            self.driver.save_screenshot(file_path)
+            return True
+        except Exception as e:
+            self._logger.error(f"Failed to take screenshot: {e}")
+            raise ScreenshotError(f"Failed to take screenshot: {e}") from e
+    
     def _create_service(self) -> ChromeService:
         """Create and configure the Chrome service.
         

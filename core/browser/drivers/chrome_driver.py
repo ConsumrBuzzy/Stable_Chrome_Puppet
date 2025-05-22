@@ -82,7 +82,10 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
         """Set up Chrome options based on configuration."""
         self._options = ChromeOptions()
         
-        # Default Chrome arguments for better stability and to suppress warnings
+        # Get Chrome arguments from config or use defaults
+        chrome_args = getattr(self.config, 'chrome_args', [])
+        
+        # Add default arguments if not already specified in config
         default_args = [
             '--disable-gpu',  # Disable GPU hardware acceleration
             '--log-level=3',  # Suppress most console logs
@@ -95,10 +98,32 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
             '--disable-browser-side-navigation',
             '--disable-features=IsolateOrigins,site-per-process',
             '--disable-blink-features=AutomationControlled',
+            '--remote-debugging-port=0',  # Use any available port
+            '--no-first-run',
+            '--no-default-browser-check',
+            '--password-store=basic',  # Prevents keyring password prompts
+            '--use-mock-keychain'  # Prevents keychain access on macOS
         ]
         
-        # Add default arguments if not already specified in config
-        chrome_args = getattr(self.config, 'chrome_args', [])
+        # Handle user data directory and profile
+        if getattr(self.config, 'use_existing_profile', False) and getattr(self.config, 'user_data_dir', None):
+            user_data_dir = str(Path(self.config.user_data_dir).absolute())
+            profile_dir = self.config.profile_directory or 'Default'
+            
+            self._logger.info(f"Using existing Chrome profile: {user_data_dir}/{profile_dir}")
+            
+            # Add profile-related arguments
+            profile_args = [
+                f'--user-data-dir={user_data_dir}',
+                f'--profile-directory={profile_dir}'
+            ]
+            
+            # Add to chrome_args if not already present
+            for arg in profile_args:
+                if not any(a.startswith(arg.split('=')[0] + '=') for a in chrome_args):
+                    chrome_args.append(arg)
+        
+        # Add all arguments to options
         for arg in default_args + chrome_args:
             if arg.split('=')[0] not in [a.split('=')[0] for a in self._options.arguments]:
                 self._options.add_argument(arg)
@@ -113,9 +138,29 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
             width, height = self.config.window_size
             self._options.add_argument(f'--window-size={width},{height}')
         
-        # Disable GPU-related features that might cause warnings
-        self._options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        self._options.add_experimental_option('excludeSwitches', ['enable-automation'])
+        # Disable automation flags that might trigger bot detection
+        self._options.add_experimental_option('excludeSwitches', [
+            'enable-automation',
+            'enable-logging',
+            'load-extension',
+            'test-type',
+            'ignore-certificate-errors',
+            'safebrowsing-disable-auto-update'
+        ])
+        
+        # Additional settings to make automation less detectable
+        self._options.add_experimental_option('useAutomationExtension', False)
+        self._options.add_experimental_option('prefs', {
+            'credentials_enable_service': False,
+            'profile.password_manager_enabled': False,
+            'profile.default_content_setting_values.notifications': 2,  # Disable notifications
+            'profile.managed_default_content_settings.images': 1,
+            'profile.managed_default_content_settings.javascript': 1,
+            'profile.managed_default_content_settings.plugins': 1,
+            'profile.managed_default_content_settings.popups': 2,
+            'profile.managed_default_content_settings.geolocation': 2,
+            'profile.managed_default_content_settings.media_stream': 2,
+        })
     
     def navigate_to(self, url: str, wait_time: Optional[float] = None) -> bool:
         """Navigate to the specified URL.

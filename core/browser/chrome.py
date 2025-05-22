@@ -58,9 +58,6 @@ class ChromeBrowser(BaseBrowser):
         if self._driver is None:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
         return getattr(self._driver, name)
-                    winreg.HKEY_CURRENT_USER,
-                    r"Software\Google\Chrome\BLBeacon"
-                ) as key:
                     version = winreg.QueryValueEx(key, 'version')[0]
                     return version.split('.')[0]  # Return major version
             else:

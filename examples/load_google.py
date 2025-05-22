@@ -11,7 +11,7 @@ from pathlib import Path
 # Add parent directory to path to allow importing from core
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.browser.drivers.chrome.browser import ChromeBrowser
+from core.browser.drivers.chrome import ChromeBrowser
 from core.browser.config import ChromeConfig
 
 def get_default_chrome_user_data_dir() -> str:

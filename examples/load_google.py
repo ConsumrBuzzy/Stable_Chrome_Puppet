@@ -44,6 +44,8 @@ def main():
     parser.add_argument('--user-data-dir', type=str, help='Custom Chrome user data directory')
     parser.add_argument('--list-profiles', action='store_true', 
                        help='List available profiles and exit')
+    parser.add_argument('--profile-type', type=str, choices=['user', 'development', 'system'],
+                       help='Filter profiles by type (user, development, system)')
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Enable verbose output')
     args = parser.parse_args()
@@ -54,36 +56,63 @@ def main():
     
     try:
         # Initialize profile manager
+        logger.debug(f"Using Chrome user data directory: {args.user_data_dir or 'default'}")
         profile_manager = ProfileManager(user_data_dir=args.user_data_dir)
         
         # List profiles and exit if requested
         if args.list_profiles:
-            profiles = profile_manager.list_profiles()
-            if not profiles:
-                print("\nNo Chrome profiles found.")
+            print("\n" + "="*50)
+            print("Available Chrome Profiles")
+            print("="*50)
+            
+            # List profiles by type
+            for profile_type, title in [
+                ('user', 'User Profiles'),
+                ('development', 'Development Profiles'),
+                ('system', 'System Profiles')
+            ]:
+                profiles = profile_manager.list_profiles(profile_type)
+                if profiles:
+                    print(f"\n{title}:")
+                    print("-" * 50)
+                    for i, profile in enumerate(profiles, 1):
+                        display_name = profile.get('display_name', profile['name'])
+                        email = f" ({profile['email']})" if profile.get('email') else ""
+                        size = f"{profile.get('size_mb', 0):.2f} MB"
+                        print(f"{i:3d}. {display_name}{email}")
+                        print(f"     Path: {profile['path']}")
+                        print(f"     Size: {size}")
+            
+            total = len(profile_manager.profiles)
+            print(f"\nTotal profiles found: {total}")
             return
         
         # Get profile to use
         selected_profile = None
         if args.profile:
             # Use specified profile
-            is_valid, message = profile_manager.validate_profile(args.profile)
-            if is_valid:
-                selected_profile = {'name': args.profile, 
-                                  'path': str(profile_manager.get_profile_path(args.profile))}
+            profiles = [p for p in profile_manager.list_profiles() 
+                      if p['name'] == args.profile or p.get('display_name') == args.profile]
+            
+            if profiles:
+                selected_profile = profiles[0]
+                logger.info(f"Using specified profile: {selected_profile.get('display_name', selected_profile['name'])}")
             else:
-                logger.warning(message)
-                print(f"\nProfile '{args.profile}' not found or invalid.")
+                logger.warning(f"Profile '{args.profile}' not found.")
         
         # If no valid profile specified, prompt user to select one
         if not selected_profile:
-            profiles = profile_manager.list_profiles()
+            profiles = profile_manager.list_profiles(args.profile_type)
+            if not profiles:
+                logger.error("No profiles found matching the specified criteria.")
+                return
+                
             selected_profile = select_profile_interactive(profiles)
             if not selected_profile:
                 logger.info("No profile selected. Exiting.")
                 return
         
-        logger.info(f"Using Chrome profile: {selected_profile['name']}")
+        logger.info(f"Using Chrome profile: {selected_profile.get('display_name', selected_profile['name'])}")
         
         # Configure Chrome with profile settings
         config = ChromeConfig(

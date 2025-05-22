@@ -26,6 +26,7 @@ from selenium.common.exceptions import (
 from webdriver_manager.chrome import ChromeDriverManager, ChromeType
 
 from ..base import BaseBrowser
+from ..driver_config import DriverConfig
 from ..exceptions import (
     BrowserError,
     BrowserNotInitializedError,
@@ -38,7 +39,7 @@ from ..exceptions import (
 from ..features.element import ElementHelper
 from ..features.navigation import NavigationMixin
 from ..features.screenshot import ScreenshotHelper
-from . import register_driver, BaseBrowserDriver, DriverConfig
+from . import register_driver, BaseBrowserDriver
 
 # Type variable for generic typing
 T = TypeVar('T')

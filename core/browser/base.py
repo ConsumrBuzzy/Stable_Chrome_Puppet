@@ -30,7 +30,7 @@ class BaseBrowser(ABC):
             logger: Optional logger instance (will create one if not provided)
         """
         self.config = config
-        self.driver = None
+        self._driver = None
         self._service = None
         
         # Set up logging
@@ -99,7 +99,21 @@ class BaseBrowser(ABC):
         Returns:
             bool: True if the browser is running
         """
-        return self.driver is not None
+        return self._driver is not None
+    
+    @property
+    def driver(self) -> Any:
+        """Get the WebDriver instance.
+        
+        Returns:
+            The WebDriver instance
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running
+        """
+        if self._driver is None:
+            raise BrowserNotInitializedError("Browser is not running")
+        return self._driver
     
     def __enter__(self):
         """Context manager entry."""

@@ -70,18 +70,31 @@ class ChromeOptionsBuilder:
             self._arguments.append("--headless=new")
         return self
     
-    def set_window_size(self, width: int, height: Optional[int] = None) -> 'ChromeOptionsBuilder':
+    def set_window_size(self, window_size: Union[Tuple[int, int], 'WindowSize', None], 
+                       height: Optional[int] = None) -> 'ChromeOptionsBuilder':
         """Set the browser window size.
         
         Args:
-            width: Window width in pixels.
-            height: Window height in pixels. If None, uses same as width.
+            window_size: Either a tuple of (width, height) or a WindowSize named tuple.
+            height: Optional height in pixels if window_size is an integer width.
             
         Returns:
             Self for method chaining.
+            
+        Raises:
+            TypeError: If window_size is not a valid type.
         """
-        if height is None:
-            height = width
+        if window_size is None:
+            return self
+            
+        if isinstance(window_size, (tuple, WindowSize)):
+            if len(window_size) != 2:
+                raise ValueError("Window size must be a tuple of (width, height)")
+            width, height = window_size
+        elif isinstance(window_size, int) and height is not None:
+            width = window_size
+        else:
+            raise TypeError("Invalid type for window_size. Expected tuple, WindowSize, or int with height")
             
         self._window_size = WindowSize(width, height)
         self._arguments.append(f"--window-size={width},{height}")

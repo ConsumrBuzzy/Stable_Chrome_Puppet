@@ -646,6 +646,251 @@ class ChromeBrowser(BaseBrowser):
     
     # Helper Methods
     
+    # JavaScript Execution
+    
+    def execute_script(self, script: str, *args) -> Any:
+        """Execute JavaScript in the current page context.
+        
+        Args:
+            script: The JavaScript code to execute.
+            *args: Arguments to pass to the script.
+            
+        Returns:
+            The result of the script execution.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If script execution fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug(f"Executing JavaScript: {script[:100]}...")
+            result = self._driver.execute_script(script, *args)
+            return result
+            
+        except WebDriverException as e:
+            error_msg = f"JavaScript execution failed: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    def execute_async_script(self, script: str, *args) -> Any:
+        """Execute asynchronous JavaScript in the current page context.
+        
+        Args:
+            script: The JavaScript code to execute.
+            *args: Arguments to pass to the script.
+            
+        Returns:
+            The result of the script execution.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            BrowserError: If script execution fails.
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.debug(f"Executing async JavaScript: {script[:100]}...")
+            result = self._driver.execute_async_script(script, *args)
+            return result
+            
+        except WebDriverException as e:
+            error_msg = f"Async JavaScript execution failed: {e}"
+            self._logger.error(error_msg)
+            raise BrowserError(error_msg) from e
+    
+    # Alert Handling
+    
+    def accept_alert(self) -> None:
+        """Accept the currently displayed alert.
+        
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            NoAlertPresentException: If no alert is present.
+        """
+        self._check_browser_initialized()
+        self._driver.switch_to.alert.accept()
+    
+    def dismiss_alert(self) -> None:
+        """Dismiss the currently displayed alert.
+        
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            NoAlertPresentException: If no alert is present.
+        """
+        self._check_browser_initialized()
+        self._driver.switch_to.alert.dismiss()
+    
+    def get_alert_text(self) -> str:
+        """Get the text of the currently displayed alert.
+        
+        Returns:
+            The alert text.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            NoAlertPresentException: If no alert is present.
+        """
+        self._check_browser_initialized()
+        return self._driver.switch_to.alert.text
+    
+    def send_keys_to_alert(self, text: str) -> None:
+        """Send keys to the currently displayed alert.
+        
+        Args:
+            text: The text to send to the alert.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            NoAlertPresentException: If no alert is present.
+        """
+        self._check_browser_initialized()
+        self._driver.switch_to.alert.send_keys(text)
+    
+    # Timeouts
+    
+    def set_page_load_timeout(self, timeout: float) -> None:
+        """Set the amount of time to wait for a page load to complete.
+        
+        Args:
+            timeout: Time to wait in seconds.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        self._driver.set_page_load_timeout(timeout)
+    
+    def set_script_timeout(self, timeout: float) -> None:
+        """Set the amount of time to wait for an asynchronous script to finish.
+        
+        Args:
+            timeout: Time to wait in seconds.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        self._driver.set_script_timeout(timeout)
+    
+    def set_implicit_wait(self, timeout: float) -> None:
+        """Set the amount of time to wait for implicit element location.
+        
+        Args:
+            timeout: Time to wait in seconds.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        self._driver.implicitly_wait(timeout)
+    
+    # Element Interaction
+    
+    def find_element(self, by: str, value: str):
+        """Find an element on the page.
+        
+        Args:
+            by: The locator strategy to use (e.g., 'id', 'name', 'xpath', etc.).
+            value: The value of the locator.
+            
+        Returns:
+            The first WebElement matching the locator.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+            NoSuchElementException: If no element is found.
+        """
+        self._check_browser_initialized()
+        return self._driver.find_element(by, value)
+    
+    def find_elements(self, by: str, value: str) -> List[Any]:
+        """Find all elements on the page matching the locator.
+        
+        Args:
+            by: The locator strategy to use (e.g., 'id', 'name', 'xpath', etc.).
+            value: The value of the locator.
+            
+        Returns:
+            A list of WebElements matching the locator (empty if none found).
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        return self._driver.find_elements(by, value)
+    
+    def wait_for_element(self, by: str, value: str, timeout: float = 10) -> Any:
+        """Wait for an element to be present on the page.
+        
+        Args:
+            by: The locator strategy to use.
+            value: The value of the locator.
+            timeout: Maximum time to wait in seconds.
+            
+        Returns:
+            The WebElement once it is found.
+            
+        Raises:
+            TimeoutException: If the element is not found within the timeout.
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        
+        return WebDriverWait(self._driver, timeout).until(
+            EC.presence_of_element_located((by, value))
+        )
+    
+    # Browser Information
+    
+    def get_browser_name(self) -> str:
+        """Get the name of the browser.
+        
+        Returns:
+            The browser name (always 'chrome' for this implementation).
+        """
+        return "chrome"
+    
+    def get_browser_version(self) -> str:
+        """Get the version of the browser.
+        
+        Returns:
+            The browser version string.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        return self._driver.capabilities.get('browserVersion', 'unknown')
+    
+    def get_platform(self) -> str:
+        """Get the platform the browser is running on.
+        
+        Returns:
+            The platform name.
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running.
+        """
+        self._check_browser_initialized()
+        return self._driver.capabilities.get('platformName', 'unknown')
+    
+    # Context Management
+    
+    def __enter__(self) -> 'ChromeBrowser':
+        """Context manager entry point."""
+        self.start()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Context manager exit point."""
+        self.stop()
+    
+    # Helper Methods
+    
     def _check_browser_initialized(self) -> None:
         """Check if the browser is properly initialized and running.
         

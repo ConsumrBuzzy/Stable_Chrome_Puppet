@@ -4,18 +4,45 @@ import sys
 import time
 import pytest
 from pathlib import Path
-from typing import Generator
+from typing import Generator, TYPE_CHECKING
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-# Add parent directory to path to import our package
-sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
+# Import core module for lazy imports
+import core
 
-from core.browser.exceptions import BrowserError, NavigationError, ElementNotFoundError, ElementNotInteractableError, TimeoutError
-from core.browser.config import ChromeConfig
-from tests.base_test import BaseTest
+# Import base test class with a try-except to handle circular imports
+try:
+    from tests.base_test import BaseTest
+except ImportError:
+    # This is a workaround for circular imports
+    BaseTest = object  # type: ignore
+
+# Lazy imports
+def get_chrome_config():
+    """Get the ChromeConfig class with lazy import."""
+    if core.ChromeConfig is None:
+        core._import_config()
+    return core.ChromeConfig
+
+# Import exceptions with lazy loading
+try:
+    from core.browser.exceptions import (
+        BrowserError,
+        NavigationError,
+        ElementNotFoundError,
+        ElementNotInteractableError,
+        TimeoutError
+    )
+except ImportError:
+    # This is a workaround for circular imports
+    BrowserError = Exception
+    NavigationError = Exception
+    ElementNotFoundError = Exception
+    ElementNotInteractableError = Exception
+    TimeoutError = Exception
 
 # Mark all tests in this module as browser tests
 pytestmark = [pytest.mark.browser, pytest.mark.driver]

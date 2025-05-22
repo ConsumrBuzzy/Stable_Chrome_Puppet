@@ -7,13 +7,32 @@ import logging
 from pathlib import Path
 from typing import Generator, Any, Dict
 
-# Import using the package's public API to avoid circular imports
-from core import ChromeDriver, ChromeConfig, DriverConfig
+# Import core module for lazy imports
+import core
 from core.browser.exceptions import (
     BrowserError,
     BrowserNotInitializedError,
     NavigationError
 )
+
+# Lazy imports
+def get_chrome_driver():
+    """Get the ChromeDriver class with lazy import."""
+    if core.ChromeDriver is None:
+        core._import_chrome_driver()
+    return core.ChromeDriver
+
+def get_chrome_config():
+    """Get the ChromeConfig class with lazy import."""
+    if core.ChromeConfig is None:
+        core._import_config()
+    return core.ChromeConfig
+
+def get_driver_config():
+    """Get the DriverConfig class with lazy import."""
+    if core.DriverConfig is None:
+        core._import_config()
+    return core.DriverConfig
 
 # Mark all tests in this module as browser tests
 pytestmark = [pytest.mark.browser, pytest.mark.driver]

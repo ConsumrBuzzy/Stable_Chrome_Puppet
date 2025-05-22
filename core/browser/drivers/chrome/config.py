@@ -1,5 +1,5 @@
 """Chrome browser configuration."""
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from pathlib import Path
 from ...config.base import BrowserConfig
 

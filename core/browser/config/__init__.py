@@ -6,6 +6,6 @@ and their respective options.
 """
 
 from .base import BrowserConfig, ProfileConfig
-from .chrome import ChromeConfig
 
-__all__ = ['BrowserConfig', 'ProfileConfig', 'ChromeConfig']
+# ChromeConfig is now in core.browser.drivers.chrome.config
+__all__ = ['BrowserConfig', 'ProfileConfig']

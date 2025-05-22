@@ -21,7 +21,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
 from core.browser.base import BaseBrowser
-from core.browser.config import BrowserConfig
+from core.browser.config.base import BrowserConfig
 from core.browser.exceptions import (
     BrowserError,
     BrowserNotInitializedError,

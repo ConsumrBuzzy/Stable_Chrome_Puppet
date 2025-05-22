@@ -29,6 +29,7 @@ class ChromeBrowser(BaseDriver[T]):
         self._driver: Optional[SeleniumChrome] = None
         self._service: Optional[ChromeService] = None
         self._options: Optional[ChromeOptions] = None
+        self._is_running: bool = False  # Ensure this is initialized
     
     def start(self) -> T:
         """Start the Chrome browser instance.
@@ -64,22 +65,31 @@ class ChromeBrowser(BaseDriver[T]):
     
     def stop(self) -> None:
         """Stop the Chrome browser and clean up resources."""
-        if not self._is_running:
+        if not getattr(self, '_is_running', False):
             return
             
         try:
-            if self._driver:
-                self._driver.quit()
-                self._driver = None
+            if hasattr(self, '_driver') and self._driver is not None:
+                try:
+                    self._driver.quit()
+                except Exception as e:
+                    logger.error(f"Error while quitting driver: {e}")
+                finally:
+                    self._driver = None
                 
-            if self._service:
-                self._service.stop()
-                self._service = None
+            if hasattr(self, '_service') and self._service is not None:
+                try:
+                    self._service.stop()
+                except Exception as e:
+                    logger.error(f"Error while stopping service: {e}")
+                finally:
+                    self._service = None
                 
             self._is_running = False
             logger.info("Chrome browser stopped")
             
         except Exception as e:
+            self._is_running = False
             logger.error(f"Error while stopping Chrome browser: {e}")
             raise
     

@@ -24,7 +24,7 @@ class ChromePuppetOrchestrator:
             config: Configuration for Chrome Puppet. Uses defaults if None.
         """
         self.config = config or DEFAULT_CONFIG
-        self.browser: Optional[ChromePuppet] = None
+        self.browser: Optional[ChromeBrowser] = None
 
     def start_browser(self) -> None:
         """Start the Chrome browser instance."""
@@ -34,7 +34,8 @@ class ChromePuppetOrchestrator:
             
         try:
             logger.info("Starting Chrome browser...")
-            self.browser = ChromePuppet(config=self.config)
+            self.browser = ChromeBrowser(config=self.config)
+            self.browser.start()
             logger.info("Chrome browser started successfully")
         except Exception as e:
             logger.error(f"Failed to start Chrome browser: {e}", exc_info=True)
@@ -46,7 +47,7 @@ class ChromePuppetOrchestrator:
         if self.browser is not None:
             try:
                 logger.info("Stopping Chrome browser...")
-                self.browser.quit()
+                self.browser.stop()
                 logger.info("Chrome browser stopped successfully")
             except Exception as e:
                 logger.error(f"Error while stopping browser: {e}", exc_info=True)
@@ -67,7 +68,16 @@ class ChromePuppetOrchestrator:
             self.start_browser()
             
         try:
-            return self.browser.navigate_to(url, wait_time)
+            # Convert wait_time to milliseconds for Selenium
+            timeout = (wait_time or self.config.page_load_timeout) * 1000 if wait_time is not None or hasattr(self.config, 'page_load_timeout') else 30000
+            
+            # Use the driver's get method directly
+            self.browser.driver.get(url)
+            
+            # Wait for the page to load completely
+            self.browser.driver.set_page_load_timeout(timeout / 1000)  # Convert back to seconds
+            return True
+            
         except Exception as e:
             logger.error(f"Error loading URL {url}: {e}", exc_info=True)
             return False
@@ -88,14 +98,21 @@ class ChromePuppetOrchestrator:
         if self.browser is None:
             self.start_browser()
             
-        if not hasattr(self.browser, task) and task != 'load_url':
-            raise ValueError(f"Unknown task: {task}")
-            
+        # Handle common tasks
         if task == 'load_url':
             return self.load_url(**kwargs)
             
-        method = getattr(self.browser, task)
-        return method(**kwargs)
+        # Check if the task is a WebDriver method
+        if hasattr(self.browser.driver, task):
+            method = getattr(self.browser.driver, task)
+            return method(**kwargs)
+            
+        # Check if the task is a ChromeBrowser method
+        if hasattr(self.browser, task):
+            method = getattr(self.browser, task)
+            return method(**kwargs)
+            
+        raise ValueError(f"Unknown task: {task}")
 
     def __enter__(self):
         """Context manager entry."""
@@ -112,18 +129,24 @@ def create_orchestrator(config: Optional[Union[Dict[str, Any], ChromeConfig]] = 
     """Create a new ChromePuppetOrchestrator instance.
     
     Args:
-        config: Configuration as a dict or ChromeConfig instance
+        config: Configuration as a dict or ChromeConfig instance.
+               If None, uses default configuration.
         
     Returns:
         Configured ChromePuppetOrchestrator instance
+        
+    Raises:
+        ValueError: If the configuration is invalid
     """
     if config is None:
         return ChromePuppetOrchestrator()
         
     if isinstance(config, dict):
-        return ChromePuppetOrchestrator(ChromeConfig(**config))
+        # Filter out None values from the config dictionary
+        filtered_config = {k: v for k, v in config.items() if v is not None}
+        return ChromePuppetOrchestrator(ChromeConfig(**filtered_config))
         
     if isinstance(config, ChromeConfig):
         return ChromePuppetOrchestrator(config)
         
-    raise TypeError("config must be a dict, ChromeConfig, or None")
+    raise ValueError("config must be a dict or ChromeConfig instance")

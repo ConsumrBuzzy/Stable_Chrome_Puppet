@@ -126,26 +126,46 @@ class ChromeBrowser(BaseBrowser):
             
         try:
             # Initialize Chrome options
-            options_builder = ChromeOptionsBuilder(self._config)
-            self._options = options_builder.build()
+            try:
+                options_builder = ChromeOptionsBuilder(self._config)
+                self._options = options_builder.build()
+                self._logger.debug("Successfully built Chrome options")
+            except Exception as e:
+                error_msg = f"Failed to build Chrome options: {e}"
+                self._logger.error(error_msg)
+                raise BrowserError(error_msg) from e
             
             # Create Chrome service
-            service_factory = ChromeServiceFactory(self._config)
-            self._service = service_factory.create_service()
+            try:
+                service_factory = ChromeServiceFactory(self._config)
+                self._service = service_factory.create_service()
+                self._logger.debug("Successfully created Chrome service")
+            except Exception as e:
+                error_msg = f"Failed to create Chrome service: {e}"
+                self._logger.error(error_msg)
+                raise BrowserError(error_msg) from e
             
             self._logger.info("Starting Chrome browser")
             try:
+                # Log the options being used
+                self._logger.debug(f"Chrome options: {self._options.arguments}")
+                if hasattr(self._service, 'service_url'):
+                    self._logger.debug(f"Chrome service URL: {self._service.service_url}")
+                
+                # Create the WebDriver instance
                 self._driver = ChromeWebDriver(
                     service=self._service,
                     options=self._options
                 )
                 
-                # Mark as running before setting window size
+                # Mark as running after successful driver creation
                 self._is_running = True
+                self._logger.info("Chrome WebDriver initialized successfully")
                 
                 # Set window size if specified
                 if hasattr(self._config, 'window_size') and self._config.window_size:
                     try:
+                        self._logger.debug(f"Setting window size to: {self._config.window_size}")
                         self.set_window_size(*self._config.window_size)
                     except Exception as e:
                         self._logger.warning(f"Could not set window size: {e}")
@@ -155,24 +175,34 @@ class ChromeBrowser(BaseBrowser):
                 
             except Exception as e:
                 self._is_running = False
-                if self._driver:
+                error_msg = f"Failed to initialize Chrome WebDriver: {str(e)}"
+                self._logger.error(error_msg, exc_info=True)
+                
+                # Try to clean up resources
+                if self._driver is not None:
                     try:
                         self._driver.quit()
-                    except:
-                        pass
-                    self._driver = None
-                raise
-            return self
+                    except Exception as quit_error:
+                        self._logger.error(f"Error while cleaning up WebDriver: {quit_error}")
+                    finally:
+                        self._driver = None
+                
+                # Provide more detailed error information
+                if "This version of ChromeDriver only supports Chrome version" in str(e):
+                    error_msg += "\n\nIt seems there's a version mismatch between Chrome and ChromeDriver. " \
+                               "Please ensure you have compatible versions installed."
+                
+                raise BrowserError(error_msg) from e
             
         except WebDriverException as e:
-            error_msg = f"Failed to start Chrome browser: {e}"
-            self._logger.error(error_msg)
+            error_msg = f"WebDriver error while starting Chrome: {e}"
+            self._logger.error(error_msg, exc_info=True)
             self.stop()
             raise BrowserError(error_msg) from e
             
         except Exception as e:
             error_msg = f"Unexpected error starting Chrome browser: {e}"
-            self._logger.error(error_msg)
+            self._logger.error(error_msg, exc_info=True)
             self.stop()
             raise BrowserError(error_msg) from e
     

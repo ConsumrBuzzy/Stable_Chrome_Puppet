@@ -19,6 +19,21 @@ Example:
     ...     browser.start()
     ...     browser.navigate_to("https://example.com")
     ...     title = browser.driver.title
+
+Module Structure:
+    - browser/
+        - __init__.py       # Public API
+        - base.py           # Base browser interface
+        - chrome.py         # Chrome implementation
+        - exceptions.py     # Custom exceptions
+        - features/         # Feature modules
+            - __init__.py
+            - element.py    # Element handling
+            - navigation.py # Navigation features
+            - screenshot.py # Screenshot utilities
+        - drivers/          # Browser drivers
+        - types.py          # Type definitions
+        - utils/            # Utility functions
     ...     browser.take_screenshot("example.png")
     ...     browser.stop()
 """

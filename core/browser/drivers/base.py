@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional, TypeVar, Generic, Type
 
 from core.browser.base import BaseBrowser
-from core.browser.config import BrowserConfig
+from core.config import BrowserConfig
 
 # Type variable for generic typing
 T = TypeVar('T', bound='BaseDriver')

@@ -64,8 +64,10 @@ def chrome_config() -> ChromeConfig:
 @pytest.fixture
 def browser(chrome_config: ChromeConfig) -> ChromeDriver:
     """Create a Chrome browser instance for testing."""
-    browser = ChromeDriver(config=chrome_config)
-    browser.start()
+    driver_class = get_chrome_driver()
+    browser = driver_class(chrome_config)
+    yield browser
+    browser.quit()
     yield browser
     browser.stop()
 

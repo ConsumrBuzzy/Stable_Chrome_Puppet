@@ -311,80 +311,86 @@ def select_profile_interactive(profiles: List[Dict[str, Any]]) -> Optional[Dict[
     if not profiles:
         print("No profiles found.")
         return None
-        
-    # Group profiles by type
-    profile_groups = {
-        'user': [],
-        'development': [],
-        'system': []
-    }
     
+    # Ensure all profiles have required fields
     for profile in profiles:
-        profile_type = profile.get('profile_type', 'user')
-        profile_groups[profile_type].append(profile)
+        profile.setdefault('display_name', profile.get('name', 'Unknown'))
+        profile.setdefault('email', None)
+        profile.setdefault('size_mb', 0)
+        profile.setdefault('path', 'Unknown')
     
-    print("\nAvailable Chrome profiles:")
-    print("-" * 40)
+    # Sort profiles by type (user first, then development, then system)
+    def get_profile_sort_key(p):
+        profile_type = p.get('profile_type', 'user')
+        type_order = {'user': 0, 'development': 1, 'system': 2}.get(profile_type, 3)
+        return (type_order, p['display_name'].lower())
     
-    # Display user profiles first
-    if profile_groups['user']:
-        print("\nUser Profiles:")
-        print("-" * 40)
-        for i, profile in enumerate(profile_groups['user'], 1):
-            profile['_display_index'] = i
-            display_name = profile.get('display_name', profile['name'])
-            email = f" ({profile['email']})" if profile.get('email') else ""
-            size = format_size(profile.get('size_mb', 0))
-            print(f"{i:4d}. {display_name}{email}")
-            print(f"      Path: {profile['path']}")
-            print(f"      Size: {size}")
+    profiles.sort(key=get_profile_sort_key)
     
-    # Display development profiles
-    if profile_groups['development']:
-        print("\nDevelopment Profiles:")
-        print("-" * 40)
-        start_idx = len(profile_groups['user']) + 1
-        for i, profile in enumerate(profile_groups['development'], start_idx):
-            profile['_display_index'] = i
-            display_name = profile.get('display_name', profile['name'])
-            size = format_size(profile.get('size_mb', 0))
-            print(f"{i:4d}. {display_name}")
-            print(f"      Path: {profile['path']}")
-            print(f"      Size: {size}")
+    # Print header
+    print("\n" + "="*80)
+    print(f"{'#':>3}  {'Profile Name':<30} {'Email':<30} {'Size':>10}")
+    print("="*80)
     
-    # Display system profiles (collapsed by default)
-    if profile_groups['system']:
-        print("\nSystem Profiles (type 's' to show/hide):")
-        if input().strip().lower() == 's':
-            start_idx = len(profile_groups['user']) + len(profile_groups['development']) + 1
-            for i, profile in enumerate(profile_groups['system'], start_idx):
-                profile['_display_index'] = i
-                size = format_size(profile.get('size_mb', 0))
-                print(f"{i:4d}. {profile['name']}")
-                print(f"      Path: {profile['path']}")
-                print(f"      Size: {size}")
+    # Print each profile
+    for i, profile in enumerate(profiles, 1):
+        profile['_display_index'] = i
+        display_name = profile['display_name'][:28] + '..' if len(profile['display_name']) > 30 else profile['display_name']
+        email = (profile['email'] or '')[:28] + '..' if profile['email'] and len(profile['email']) > 30 else (profile['email'] or '')
+        size = format_size(profile['size_mb'])
+        
+        print(f"{i:3d}. {display_name:<30} {email:<30} {size:>10}")
     
-    # Create a flat list of all displayed profiles
-    all_profiles = []
-    all_profiles.extend(profile_groups['user'])
-    all_profiles.extend(profile_groups['development'])
+    print("\n" + "-"*80)
+    print("Profile Details (select a number to see details or press Enter to cancel):")
     
-    # Add system profiles if they were shown
-    if profile_groups['system'] and 's' in locals() and locals().get('s') == 's':
-        all_profiles.extend(profile_groups['system'])
-    
+    # Main interaction loop
     while True:
         try:
-            choice = input("\nEnter profile number or press Enter to cancel: ").strip()
+            choice = input("\nSelect profile #, 'a' to show all, or press Enter to cancel: ").strip().lower()
+            
+            # Handle empty input (cancel)
             if not choice:
-                print("\nNo profile selected.")
+                print("Operation cancelled.")
                 return None
                 
-            profile_index = int(choice) - 1
-            if 0 <= profile_index < len(all_profiles):
-                return all_profiles[profile_index]
+            # Handle 'a' to show all profiles with full details
+            if choice == 'a':
+                print("\n" + "="*80)
+                print("AVAILABLE PROFILES WITH DETAILS")
+                print("="*80)
                 
-            print(f"\nInvalid selection. Please enter a number between 1 and {len(all_profiles)}.")
+                for profile in profiles:
+                    print(f"\nProfile: {profile['display_name']} ({profile['name']})")
+                    if profile['email']:
+                        print(f"  Email: {profile['email']}")
+                    print(f"  Path: {profile['path']}")
+                    print(f"  Size: {format_size(profile['size_mb'])}")
+                    print(f"  Type: {profile.get('profile_type', 'user').title()}")
+                
+                print("\n" + "-"*80)
+                continue
+                
+            # Handle numeric selection
+            profile_index = int(choice) - 1
+            if 0 <= profile_index < len(profiles):
+                selected = profiles[profile_index]
+                print("\n" + "="*80)
+                print(f"SELECTED PROFILE: {selected['display_name']}")
+                print("="*80)
+                print(f"Name:    {selected['display_name']} ({selected['name']})")
+                if selected['email']:
+                    print(f"Email:   {selected['email']}")
+                print(f"Path:    {selected['path']}")
+                print(f"Size:    {format_size(selected['size_mb'])}")
+                print(f"Type:    {selected.get('profile_type', 'user').title()}")
+                
+                confirm = input("\nUse this profile? (Y/n): ").strip().lower()
+                if not confirm or confirm == 'y':
+                    return selected
+                continue
+                
+            print(f"\nInvalid selection. Please enter a number between 1 and {len(profiles)} or 'a' to show all.")
             
         except ValueError:
-            print("\nPlease enter a valid number.")
+            print("\nPlease enter a valid number, 'a' to show all, or press Enter to cancel.")

@@ -199,10 +199,10 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
                     '--enable-password-manager-reauthentication',
                 ])
         else:
-            default_args.append('--disable-blink-features=AutomationControlled')
+            common_args.append('--disable-blink-features=AutomationControlled')
         
         # Add all arguments to options
-        for arg in default_args + chrome_args:
+        for arg in common_args + chrome_args:
             if arg.split('=')[0] not in [a.split('=')[0] for a in self._options.arguments]:
                 self._options.add_argument(arg)
         

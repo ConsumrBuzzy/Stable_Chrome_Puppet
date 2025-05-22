@@ -1,13 +1,16 @@
 """Chrome browser implementation."""
 import logging
-from typing import Any, Dict, Optional, TypeVar
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional, TypeVar, Union
 
 from selenium.webdriver import Chrome as SeleniumChrome
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 
-from ....types import BrowserConfig, BrowserType, WindowSize
-from ...driver import BaseDriver
+from ....config import ChromeConfig
+from ....types import BrowserType, WindowSize
+from ...base_driver import BaseDriver
 
 logger = logging.getLogger(__name__)
 T = TypeVar('T', bound='ChromeBrowser')
@@ -16,13 +19,13 @@ T = TypeVar('T', bound='ChromeBrowser')
 class ChromeBrowser(BaseDriver[T]):
     """Chrome browser implementation using Selenium WebDriver."""
     
-    def __init__(self, config: Optional[BrowserConfig] = None) -> None:
+    def __init__(self, config: Optional[ChromeConfig] = None) -> None:
         """Initialize the Chrome browser.
         
         Args:
             config: Configuration for the browser instance.
         """
-        super().__init__(config or BrowserConfig())
+        super().__init__(config or ChromeConfig())
         self._driver: Optional[SeleniumChrome] = None
         self._service: Optional[ChromeService] = None
         self._options: Optional[ChromeOptions] = None

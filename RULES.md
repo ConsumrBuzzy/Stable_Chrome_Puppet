@@ -29,11 +29,32 @@
    - Clear documentation of all configurable options
 
 6. **Testing**
-   - All features must be tested
-   - Tests should be isolated and independent
-   - Include both unit and integration tests
+   - All features must be tested with both unit and integration tests
+   - Tests should be isolated, independent, and deterministic
+   - Follow the Arrange-Act-Assert pattern
+   - Use descriptive test method names that describe the behavior being tested
+   - Each test should verify exactly one behavior
+   - Use fixtures for common test setup/teardown
+   - Mark tests appropriately (e.g., @pytest.mark.browser for browser tests)
+   - Include negative test cases for error conditions
+   - Tests should clean up after themselves
+   - Browser tests should be marked with @pytest.mark.browser
+   - Driver tests should be marked with @pytest.mark.driver
+   - Keep tests focused and fast (avoid unnecessary browser launches)
 
-7. **Documentation**
+7. **Test Structure**
+   - Unit tests should be in the `tests/unit` directory
+   - Integration tests should be in the `tests/integration` directory
+   - Browser tests should be in the `tests/browser` directory
+   - Test files should be named `test_*.py` or `*_test.py`
+   - Test classes should be named `Test*`
+   - Test methods should be named `test_*`
+   - Use fixtures for test data and common setup
+   - Keep test data in the `tests/test_data` directory
+   - Use pytest markers to categorize tests
+   - Document test dependencies and requirements
+
+9. **Documentation**
    - Keep documentation up-to-date
    - Include examples for common use cases
    - Document all public APIs

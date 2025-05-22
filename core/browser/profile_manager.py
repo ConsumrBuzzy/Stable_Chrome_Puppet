@@ -127,6 +127,19 @@ class ProfileManager:
         """Calculate the total size of a directory in bytes."""
         return sum(f.stat().st_size for f in path.glob('**/*') if f.is_file())
     
+    def _is_profile_directory(self, path: Path) -> bool:
+        """Check if a directory is a valid Chrome profile directory."""
+        # Must be a directory
+        if not path.is_dir():
+            return False
+            
+        # Must have a Preferences file or be a numbered profile
+        has_prefs = (path / 'Preferences').exists()
+        is_numbered_profile = path.name.startswith('Profile ') and path.name[8:].isdigit()
+        is_default_profile = path.name == 'Default'
+        
+        return has_prefs or is_numbered_profile or is_default_profile
+    
     def _discover_profiles(self) -> None:
         """Discover and categorize all available profiles in the user data directory."""
         self.profiles.clear()
@@ -138,23 +151,22 @@ class ProfileManager:
         
         # Find all profile directories
         for item in profiles_path.iterdir():
-            # Skip non-directories and special files
-            if not item.is_dir() or item.name in ['.', '..']:
+            # Skip special directories
+            if item.name in ['.', '..'] or item.name in self.IGNORED_PROFILES:
                 continue
                 
-            # Skip ignored profiles
-            if item.name in self.IGNORED_PROFILES:
-                continue
-                
-            # Check if this is a profile directory (should contain Preferences file or be a Profile directory)
-            if (item / 'Preferences').exists() or item.name.startswith('Profile '):
+            # Check if this is a profile directory
+            if self._is_profile_directory(item):
                 try:
                     profile_info = self._get_profile_info(item)
                     profile_info['profile_type'] = self._get_profile_type(item.name)
                     self.profiles[item.name] = profile_info
+                    logger.debug(f"Found profile: {item.name} (type: {profile_info['profile_type']})")
                 except Exception as e:
-                    logger.warning(f"Error processing profile {item.name}: {e}")
-                    continue
+                    logger.warning(f"Error processing profile {item.name}: {e}", exc_info=True)
+        
+        # Log summary of found profiles
+        logger.debug(f"Discovered {len(self.profiles)} profiles: {', '.join(self.profiles.keys())}")
     
     def list_profiles(self, profile_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """List all available profiles, optionally filtered by type.

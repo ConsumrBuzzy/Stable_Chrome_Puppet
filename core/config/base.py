@@ -12,8 +12,8 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union, TypeVar, Generic, Type, ClassVar
 
-# Import from the new location
-from ..exceptions import BrowserError
+# Import from the correct location
+from core.browser.exceptions import BrowserError
 
 # Type variable for configuration classes
 T = TypeVar('T', bound='BaseConfig')

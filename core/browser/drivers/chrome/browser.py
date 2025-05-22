@@ -182,13 +182,13 @@ class ChromeBrowser(BaseDriver[T]):
         Returns:
             Configured ChromeService instance.
         """
-        service_args = self.config.service_args or []
-        service_log_path = self.config.service_log_path or "chromedriver.log"
+        # Use default log path if not specified
+        log_path = self.config.log_file or "chromedriver.log"
         
+        # Create service with minimal required arguments
+        # Note: Newer versions of Selenium don't require executable_path
         service = ChromeService(
-            executable_path=self.config.driver_path,
-            service_args=service_args,
-            log_path=service_log_path
+            log_path=log_path
         )
         
         return service

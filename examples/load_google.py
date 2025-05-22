@@ -59,32 +59,70 @@ def main():
         logger.debug(f"Using Chrome user data directory: {args.user_data_dir or 'default'}")
         profile_manager = ProfileManager(user_data_dir=args.user_data_dir)
         
-        # List profiles and exit if requested
+        # List profiles only if requested
         if args.list_profiles:
-            print("\n" + "="*50)
-            print("Available Chrome Profiles")
-            print("="*50)
+            print("\n" + "="*80)
+            print("CHROME PROFILE MANAGER")
+            print("="*80)
             
-            # List profiles by type
-            for profile_type, title in [
-                ('user', 'User Profiles'),
-                ('development', 'Development Profiles'),
-                ('system', 'System Profiles')
-            ]:
-                profiles = profile_manager.list_profiles(profile_type)
-                if profiles:
-                    print(f"\n{title}:")
-                    print("-" * 50)
-                    for i, profile in enumerate(profiles, 1):
-                        display_name = profile.get('display_name', profile['name'])
-                        email = f" ({profile['email']})" if profile.get('email') else ""
-                        size = f"{profile.get('size_mb', 0):.2f} MB"
-                        print(f"{i:3d}. {display_name}{email}")
-                        print(f"     Path: {profile['path']}")
-                        print(f"     Size: {size}")
+            # Get profiles based on filter if provided
+            if args.profile_type:
+                profiles = profile_manager.list_profiles(profile_type=args.profile_type)
+                if not profiles:
+                    print(f"\nNo {args.profile_type} profiles found.")
+                    return
+            else:
+                profiles = profile_manager.list_profiles()
             
-            total = len(profile_manager.profiles)
-            print(f"\nTotal profiles found: {total}")
+            # Sort profiles by type and name
+            def get_profile_sort_key(p):
+                profile_type = p.get('profile_type', 'user')
+                type_order = {'user': 0, 'development': 1, 'system': 2}.get(profile_type, 3)
+                return (type_order, p.get('display_name', '').lower())
+            
+            profiles.sort(key=get_profile_sort_key)
+            
+            # Print summary header
+            print(f"\n{'#':>3}  {'Profile Name':<30} {'Email':<30} {'Size':>10}")
+            print("-" * 80)
+            
+            # Print each profile in the list
+            for i, profile in enumerate(profiles, 1):
+                display_name = profile.get('display_name', profile['name'])
+                if len(display_name) > 28:
+                    display_name = display_name[:25] + '...'
+                    
+                email = profile.get('email', '')
+                if email and len(email) > 28:
+                    email = email[:25] + '...'
+                    
+                size = format_size(profile.get('size_mb', 0))
+                print(f"{i:3d}. {display_name:<30} {email:<30} {size:>10}")
+            
+            # Print detailed information for each profile
+            print("\n" + "="*80)
+            print("DETAILED PROFILE INFORMATION")
+            print("="*80)
+            
+            for i, profile in enumerate(profiles, 1):
+                print(f"\n[{i}] {profile.get('display_name', profile['name'])}")
+                print("-" * 80)
+                
+                # Basic info
+                print(f"Name:    {profile.get('display_name', profile['name'])}")
+                if 'email' in profile and profile['email']:
+                    print(f"Email:   {profile['email']}")
+                print(f"Type:    {profile.get('profile_type', 'user').title()}")
+                print(f"Path:    {profile['path']}")
+                print(f"Size:    {format_size(profile.get('size_mb', 0))}")
+                
+                # Last modified time if available
+                if 'last_modified' in profile and profile['last_modified']:
+                    from datetime import datetime
+                    mod_time = datetime.fromtimestamp(profile['last_modified'])
+                    print(f"Updated: {mod_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            print(f"\nTotal profiles found: {len(profiles)}")
             return
         
         # Get profile to use

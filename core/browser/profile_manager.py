@@ -59,11 +59,44 @@ class ProfileManager:
     def get_default_user_data_dir() -> str:
         """Get the default Chrome user data directory based on the OS."""
         if os.name == 'nt':  # Windows
-            return os.path.expandvars(r'%LOCALAPPDATA%\\Google\\Chrome\\User Data')
+            # Get the actual path from the environment variable
+            local_app_data = os.environ.get('LOCALAPPDATA', '')
+            if not local_app_data:
+                # Fallback to default path if LOCALAPPDATA is not set
+                local_app_data = os.path.join(os.environ.get('USERPROFILE', ''), 'AppData', 'Local')
+            
+            chrome_path = os.path.join(local_app_data, 'Google', 'Chrome', 'User Data')
+            
+            # Debug output
+            logger.debug(f"Looking for Chrome user data in: {chrome_path}")
+            
+            # Check if the path exists
+            if os.path.exists(chrome_path):
+                logger.debug(f"Found Chrome user data directory: {chrome_path}")
+                return chrome_path
+            else:
+                # Try alternative locations if the default doesn't exist
+                alternative_paths = [
+                    os.path.join(os.environ.get('USERPROFILE', ''), 'AppData', 'Local', 'Google', 'Chrome', 'User Data'),
+                    os.path.join(os.environ.get('APPDATA', ''), '..', 'Local', 'Google', 'Chrome', 'User Data'),
+                    os.path.join('C:', 'Users', os.environ.get('USERNAME', ''), 'AppData', 'Local', 'Google', 'Chrome', 'User Data')
+                ]
+                
+                for path in alternative_paths:
+                    path = os.path.abspath(path)
+                    if os.path.exists(path):
+                        logger.debug(f"Found Chrome user data directory (alternative path): {path}")
+                        return path
+                
+                logger.warning(f"Chrome user data directory not found in any standard location")
+                return os.path.join(local_app_data, 'Google', 'Chrome', 'User Data')
+                
         elif os.name == 'posix':  # macOS/Linux
             if os.uname().sysname == 'Darwin':  # macOS
                 return os.path.expanduser('~/Library/Application Support/Google/Chrome')
             return os.path.expanduser('~/.config/google-chrome')
+            
+        logger.warning("Unsupported operating system")
         return ''
     
     def _get_profile_type(self, profile_name: str) -> str:

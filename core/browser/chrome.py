@@ -27,6 +27,11 @@ from .exceptions import (
     TimeoutError as BrowserTimeoutError
 )
 
+# Import features from their new locations
+from .features.element import ElementHelper
+from .features.navigation import NavigationMixin
+from .features.screenshot import ScreenshotHelper
+
 
 class ChromeBrowser(BaseBrowser):
     """Chrome browser implementation for web automation.

@@ -28,7 +28,6 @@ from ....exceptions import (
     NavigationError,
     ScreenshotError,
 )
-from ....logging import get_logger
 
 if TYPE_CHECKING:
     from selenium.webdriver.remote.shadowroot import ShadowRoot
@@ -44,7 +43,7 @@ from .config import ChromeConfig
 from .options import ChromeOptionsBuilder
 from .service import ChromeServiceFactory
 
-logger = logging.getLogger(__name__)
+# Logger will be set in __init__
 
 class ChromeBrowser(BaseBrowser):
     """Chrome browser implementation using Selenium WebDriver."""

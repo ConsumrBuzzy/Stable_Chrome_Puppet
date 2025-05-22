@@ -151,14 +151,28 @@ class ChromeBrowser(BaseDriver[T]):
         if self.config.user_agent:
             options.add_argument(f"--user-agent={self.config.user_agent}")
         
-        # Add additional arguments from config
-        for arg in self.config.extra_args or []:
+        # Add chrome arguments from config
+        for arg in self.config.chrome_arguments or []:
             options.add_argument(arg)
+            
+        # Add any additional chrome options
+        for key, value in (self.config.chrome_options or {}).items():
+            options.set_capability(key, value)
         
         # Set experimental options
         if self.config.experimental_options:
             for key, value in self.config.experimental_options.items():
-                options.set_capability(key, value)
+                options.set_experimental_option(key, value)
+        
+        # Set performance settings
+        if self.config.disable_gpu:
+            options.add_argument("--disable-gpu")
+            
+        if self.config.no_sandbox:
+            options.add_argument("--no-sandbox")
+            
+        if self.config.disable_dev_shm_usage:
+            options.add_argument("--disable-dev-shm-usage")
         
         return options
     

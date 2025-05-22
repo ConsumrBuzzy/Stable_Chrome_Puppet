@@ -85,24 +85,20 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
         # Get Chrome arguments from config or use defaults
         chrome_args = getattr(self.config, 'chrome_args', [])
         
-        # Add default arguments if not already specified in config
+        # Default Chrome arguments for better stability and to suppress warnings
         default_args = [
             '--disable-gpu',  # Disable GPU hardware acceleration
             '--log-level=3',  # Suppress most console logs
             '--no-sandbox',
             '--disable-dev-shm-usage',  # Overcome limited resource problems
             '--disable-software-rasterizer',
-            '--disable-extensions',
-            '--disable-infobars',
-            '--disable-notifications',
-            '--disable-browser-side-navigation',
-            '--disable-features=IsolateOrigins,site-per-process',
-            '--disable-blink-features=AutomationControlled',
             '--remote-debugging-port=0',  # Use any available port
             '--no-first-run',
             '--no-default-browser-check',
-            '--password-store=basic',  # Prevents keyring password prompts
-            '--use-mock-keychain'  # Prevents keychain access on macOS
+            '--password-store=basic',  # Required for password manager
+            '--use-mock-keychain',  # Prevents keychain access prompts on macOS
+            '--allow-profiles-outside-user-dir',
+            '--enable-profile-shortcut-manager'
         ]
         
         # Handle user data directory and profile
@@ -122,6 +118,49 @@ class ChromeDriver(BaseBrowserDriver, NavigationMixin, ElementHelper, Screenshot
             for arg in profile_args:
                 if not any(a.startswith(arg.split('=')[0] + '=') for a in chrome_args):
                     chrome_args.append(arg)
+                    
+            # Add profile directory to experimental options if not set
+            if 'prefs' not in getattr(self.config, 'experimental_options', {}):
+                self.config.experimental_options['prefs'] = {}
+                
+            # Ensure profile settings are properly configured
+            profile_prefs = {
+                'profile.default_content_settings.popups': 1,
+                'profile.default_content_setting_values.notifications': 1,
+                'credentials_enable_service': True,
+                'profile.password_manager_enabled': True
+            }
+            
+            self.config.experimental_options['prefs'].update(profile_prefs)
+        
+        # Enable password manager if configured
+        if getattr(self.config, 'enable_password_manager', True):
+            default_args.extend([
+                '--enable-automation',
+                '--disable-blink-features=AutomationControlled',
+            ])
+            
+            # Add password manager settings to experimental options
+            if 'prefs' not in getattr(self.config, 'experimental_options', {}):
+                self.config.experimental_options['prefs'] = {}
+                
+            password_prefs = {
+                'credentials_enable_service': True,
+                'profile.password_manager_enabled': True,
+                'profile.default_content_setting_values.notifications': 1,
+                'profile.default_content_settings.popups': 1,
+            }
+            
+            self.config.experimental_options['prefs'].update(password_prefs)
+            
+            # Enable password manager prompts if configured
+            if getattr(self.config, 'enable_password_manager_prompts', True):
+                default_args.extend([
+                    '--enable-autofill-password-reveal',
+                    '--enable-password-manager-reauthentication',
+                ])
+        else:
+            default_args.append('--disable-blink-features=AutomationControlled')
         
         # Add all arguments to options
         for arg in default_args + chrome_args:

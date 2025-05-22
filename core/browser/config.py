@@ -58,6 +58,8 @@ class ChromeConfig(BrowserConfig):
         user_data_dir: Path to the Chrome user data directory (e.g., 'C:\\Users\\username\\AppData\\Local\\Google\\Chrome\\User Data')
         profile_directory: Name of the profile directory inside user_data_dir (e.g., 'Profile 1' or 'Default')
         use_existing_profile: Whether to use an existing Chrome profile (True) or create a temporary one (False)
+        enable_password_manager: Whether to enable Chrome's built-in password manager (default: True)
+        enable_password_manager_prompts: Whether to show password manager prompts (default: True)
         chrome_args: Additional Chrome command line arguments
         experimental_options: Chrome experimental options
     """
@@ -65,6 +67,8 @@ class ChromeConfig(BrowserConfig):
     user_data_dir: Optional[str] = None
     profile_directory: Optional[str] = None
     use_existing_profile: bool = False
+    enable_password_manager: bool = True
+    enable_password_manager_prompts: bool = True
     chrome_args: List[str] = field(default_factory=list)
     experimental_options: Dict[str, Any] = field(default_factory=dict)
     
@@ -79,18 +83,46 @@ class ChromeConfig(BrowserConfig):
         # Add common Chrome options for stability
         common_args = [
             '--no-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-extensions',
+            '--disable-dev-shm-usage',  # Overcome limited resource problems
             '--disable-software-rasterizer',
             '--remote-debugging-port=0',  # Use any available port
             '--no-first-run',
-            '--no-default-browser-check'
+            '--no-default-browser-check',
+            '--password-store=basic',  # Required for password manager to work
+            '--use-mock-keychain',  # Prevents keychain access prompts on macOS
+            '--allow-profiles-outside-user-dir',
+            '--enable-profile-shortcut-manager'
         ]
         
-        if self.use_existing_profile and self.user_data_dir:
-            # When using an existing profile, we need to ensure Chrome doesn't show the profile picker
+        # Enable password manager if requested
+        if self.enable_password_manager:
             common_args.extend([
+                '--enable-automation',
+                '--disable-blink-features=AutomationControlled',
+            ])
+            
+            # Add password manager settings to experimental options
+            self.experimental_options.update({
+                'prefs': {
+                    'credentials_enable_service': True,
+                    'profile.password_manager_enabled': True,
+                    'profile.default_content_setting_values.notifications': 1,
+                    'profile.default_content_settings.popups': 1,
+                }
+            })
+            
+            # Enable password manager prompts if requested
+            if self.enable_password_manager_prompts:
+                common_args.extend([
+                    '--enable-autofill-password-reveal',
+                    '--enable-password-manager-reauthentication',
+                ])
+        else:
+            common_args.append('--disable-blink-features=AutomationControlled')
+        
+        # Add profile arguments if using existing profile
+        if self.use_existing_profile and self.user_data_dir:
+            profile_args = [
                 f'--user-data-dir={self.user_data_dir}',
                 f'--profile-directory={self.profile_directory or "Default"}'
             ])

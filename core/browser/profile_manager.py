@@ -355,25 +355,55 @@ class ProfileManager:
             logger.critical(f"Fatal error during profile discovery: {str(e)}", exc_info=True)
             print(f"\nFATAL ERROR: Failed to discover profiles: {str(e)}")
     
-    def list_profiles(self, profile_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_profiles(self, profile_type: Optional[str] = None, include_details: bool = False) -> List[Dict[str, Any]]:
         """List all available profiles, optionally filtered by type.
         
         Args:
             profile_type: Optional filter for profile type ('user', 'development', or 'system')
+            include_details: If True, include detailed account information
             
         Returns:
             List of dictionaries containing profile information
         """
+        # Filter profiles by type if specified
+        filtered_profiles = self.profiles.items()
         if profile_type:
-            return [
-                {**profile, 'name': name}
-                for name, profile in self.profiles.items()
+            filtered_profiles = [
+                (name, profile) for name, profile in filtered_profiles
                 if profile.get('profile_type') == profile_type
             ]
-        return [
-            {**profile, 'name': name}
-            for name, profile in self.profiles.items()
-        ]
+        
+        # Prepare the result list
+        result = []
+        for name, profile in filtered_profiles:
+            # Create a copy of the profile to avoid modifying the original
+            profile_info = profile.copy()
+            profile_info['name'] = name
+            
+            # Include all emails if available
+            emails = []
+            if 'email' in profile_info and profile_info['email']:
+                emails.append(profile_info['email'])
+            if 'emails' in profile_info and profile_info['emails']:
+                emails.extend([e for e in profile_info['emails'] if e and e not in emails])
+            
+            # Update the emails list
+            if emails:
+                profile_info['emails'] = emails
+                profile_info['email'] = emails[0]  # Set primary email
+            
+            # Include account info if requested
+            if not include_details:
+                profile_info.pop('account_info', None)
+            
+            result.append(profile_info)
+        
+        # Sort by profile type and then by display name
+        def get_sort_key(p):
+            type_order = {'user': 0, 'development': 1, 'system': 2}.get(p.get('profile_type', 'user'), 3)
+            return (type_order, (p.get('display_name') or p['name']).lower())
+        
+        return sorted(result, key=get_sort_key)
         
     def get_user_profiles(self) -> List[Dict[str, Any]]:
         """Get all user profiles.

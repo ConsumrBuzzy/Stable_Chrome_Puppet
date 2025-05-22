@@ -74,6 +74,43 @@ class ChromeBrowser(BaseBrowser):
         self._is_running: bool = False
         self._config = config  # Store the config for later use
     
+    def navigate_to(self, url: str, wait_time: Optional[float] = None) -> bool:
+        """Navigate to the specified URL.
+        
+        Args:
+            url: The URL to navigate to
+            wait_time: Optional time to wait for page load
+            
+        Returns:
+            bool: True if navigation was successful, False otherwise
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not running
+            NavigationError: If navigation fails
+        """
+        self._check_browser_initialized()
+        
+        try:
+            self._logger.info(f"Navigating to {url}")
+            
+            # Set page load timeout if specified
+            if wait_time is not None:
+                self._driver.set_page_load_timeout(wait_time)
+            
+            self._driver.get(url)
+            self._logger.info(f"Successfully navigated to {url}")
+            return True
+            
+        except TimeoutException as e:
+            error_msg = f"Timeout while navigating to {url}: {e}"
+            self._logger.error(error_msg)
+            raise NavigationError(error_msg) from e
+            
+        except WebDriverException as e:
+            error_msg = f"Failed to navigate to {url}: {e}"
+            self._logger.error(error_msg)
+            raise NavigationError(error_msg) from e
+            
     def start(self) -> 'ChromeBrowser':
         """Start the Chrome browser instance.
         

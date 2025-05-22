@@ -66,8 +66,7 @@ def browser(chrome_config: ChromeConfig) -> ChromeDriver:
     """Create a Chrome browser instance for testing."""
     driver_class = get_chrome_driver()
     browser = driver_class(chrome_config)
-    yield browser
-    browser.quit()
+    browser.start()
     yield browser
     browser.stop()
 

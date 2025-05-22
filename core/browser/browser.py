@@ -3,9 +3,11 @@
 This module provides a high-level interface for browser automation with support
 for multiple browser backends through a driver-based architecture.
 """
+from __future__ import annotations
+
 import logging
 import time
-from typing import Any, Optional, Type, Union, Dict, List, Tuple, cast
+from typing import Any, Optional, Type, Union, Dict, List, Tuple, cast, TypeVar, Generic, Type
 
 from .drivers import get_driver_class, BaseBrowserDriver
 from .base import BaseBrowser
@@ -16,6 +18,8 @@ from .exceptions import (
     ScreenshotError
 )
 
+T = TypeVar('T', bound=BaseBrowserDriver)
+
 
 class Browser(BaseBrowser):
     """Main browser class providing a generic interface for browser automation.
@@ -24,7 +28,7 @@ class Browser(BaseBrowser):
     providing a consistent API regardless of the underlying browser.
     """
     
-    def __init__(self, config: Any = None, logger: Optional[logging.Logger] = None):
+    def __init__(self, config: Any = None, logger: Optional[logging.Logger] = None) -> None:
         """Initialize the browser.
         
         Args:
@@ -35,77 +39,106 @@ class Browser(BaseBrowser):
         if config is None:
             from .config import BrowserConfig
             config = BrowserConfig()
-            
-        # Initialize the base class with driver=None initially
+        
+        # Set up logging before initializing base class
+        if logger is None:
+            logger = logging.getLogger(self.__class__.__name__)
+        
+        # Initialize the base class with driver=None
         super().__init__(config, logger)
         
-        # Initialize internal attributes
+        # Initialize driver-related attributes
         self._driver: Optional[BaseBrowserDriver] = None
         self._driver_class: Optional[Type[BaseBrowserDriver]] = None
         self._initialized: bool = False
-        
-        # Set up logging if not provided
-        if logger is None:
-            self._logger = logging.getLogger(self.__class__.__name__)
-        else:
-            self._logger = logger
-            
-        # Set the driver on the base class
-        super().__setattr__('_driver', None)
+        self._config = config
+        self._logger = logger
     
     def _initialize_driver(self) -> None:
-        """Initialize the browser driver based on configuration."""
+        """Initialize the browser driver based on configuration.
+        
+        Raises:
+            BrowserError: If driver initialization fails
+        """
         if self._initialized and self._driver is not None:
             return
             
-        browser_type = getattr(self.config, 'browser_type', 'chrome').lower()
+        browser_type = getattr(self._config, 'browser_type', 'chrome').lower()
         try:
             self._driver_class = get_driver_class(browser_type)
-            self._driver = self._driver_class(self.config, self._logger)
-        except ValueError as e:
-            self._logger.warning(f"Falling back to Chrome: {e}")
-            # Fall back to Chrome if the configured browser is not available
-            self._driver_class = get_driver_class('chrome')
-            self._driver = self._driver_class(self.config, self._logger)
+            self._driver = self._driver_class(self._config, self._logger)
+            self._driver.start()
+        except Exception as e:
+            self._logger.error(f"Failed to initialize {browser_type} driver: {e}")
+            if browser_type != 'chrome':
+                self._logger.warning("Falling back to Chrome driver")
+                try:
+                    self._driver_class = get_driver_class('chrome')
+                    self._driver = self._driver_class(self._config, self._logger)
+                    self._driver.start()
+                except Exception as chrome_error:
+                    self._logger.error(f"Failed to initialize Chrome driver: {chrome_error}")
+                    raise BrowserError("Failed to initialize any browser driver") from chrome_error
+            else:
+                raise BrowserError(f"Failed to initialize {browser_type} driver") from e
             
         self._initialized = True
         
         # Set the driver on the base class
-        super().__setattr__('driver', self._driver.driver if hasattr(self._driver, 'driver') else self._driver)
+        if self._driver is not None:
+            driver_instance = self._driver.driver if hasattr(self._driver, 'driver') else self._driver
+            object.__setattr__(self, 'driver', driver_instance)
     
     @property
     def driver(self) -> Any:
-        """Get the underlying driver instance."""
+        """Get the underlying driver instance.
+        
+        Returns:
+            The underlying WebDriver instance
+            
+        Raises:
+            BrowserNotInitializedError: If the browser is not initialized
+        """
         if self._driver is None:
-            self.start()
-        if self._driver is None:
-            raise BrowserNotInitializedError("Browser driver not initialized")
+            raise BrowserNotInitializedError("Browser is not initialized. Call start() first.")
         return self._driver.driver if hasattr(self._driver, 'driver') else self._driver
         
     @driver.setter
     def driver(self, value: Any) -> None:
         """Set the underlying driver instance.
         
-        This is primarily for internal use. Prefer using the start() method.
+        Args:
+            value: The WebDriver instance to use
+            
+        Note:
+            This is primarily for internal use. Prefer using the start() method.
         """
         self._driver = value
-        # Update the base class's driver reference
-        super().__setattr__('_driver', value)
+        # Ensure the base class's driver is in sync
+        if value is not None:
+            driver_instance = value.driver if hasattr(value, 'driver') else value
+            object.__setattr__(self, 'driver', driver_instance)
     
     def start(self) -> None:
-        """Start the browser."""
+        """Start the browser.
+        
+        Raises:
+            BrowserError: If the browser fails to start
+        """
+        if self._initialized and self._driver is not None:
+            self._logger.warning("Browser is already started")
+            return
+            
         try:
+            self._initialize_driver()
             if self._driver is None:
-                self._initialize_driver()
-            if self._driver is not None:
-                self._driver.start()
-                # Update the base class's driver reference after start
-                super().__setattr__('driver', 
-                    self._driver.driver if hasattr(self._driver, 'driver') else self._driver
-                )
+                raise BrowserError("Failed to initialize browser driver")
+                
+            self._logger.info(f"Started {self._driver.__class__.__name__}")
+            
         except Exception as e:
-            self._logger.error(f"Failed to start browser: {e}")
-            self._driver = None
+            self._logger.error(f"Failed to start browser: {e}", exc_info=True)
+            self.stop()
             raise BrowserError(f"Failed to start browser: {e}") from e
         
     def navigate_to(self, url: str, wait_time: Optional[float] = None) -> bool:
@@ -185,28 +218,40 @@ class Browser(BaseBrowser):
         """Context manager exit."""
         self.stop()
     
-    def __getattr__(self, name):
-        """Delegate attribute access to the underlying driver."""
+    def __getattr__(self, name: str) -> Any:
+        """Delegate attribute access to the underlying driver.
+        
+        Args:
+            name: Name of the attribute to get
+            
+        Returns:
+            The requested attribute from the underlying driver
+            
+        Raises:
+            AttributeError: If the attribute doesn't exist on the driver
+            BrowserNotInitializedError: If the browser is not initialized
+        """
         # Don't try to delegate special methods
         if name.startswith('__') and name.endswith('__'):
-            raise AttributeError(name)
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
             
         # Check if the attribute exists on this class
         if name in self.__dict__ or name in self.__class__.__dict__:
             return object.__getattribute__(self, name)
             
         # If we have a driver, try to get the attribute from it
-        if self._driver is not None:
-            try:
-                return getattr(self._driver, name)
-            except AttributeError as e:
-                # Re-raise with a more helpful message
-                raise AttributeError(
-                    f"'{self.__class__.__name__}' and its driver have no attribute '{name}'"
-                ) from e
+        if self._driver is None:
+            raise BrowserNotInitializedError("Browser is not initialized. Call start() first.")
+            
+        try:
+            return getattr(self._driver, name)
+        except AttributeError as e:
+            # Re-raise with a more helpful message
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object and its driver have no attribute '{name}'"
+            ) from e
                 
-        # If we get here, the attribute wasn't found
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+    # Removed the extra raise statement here
 
 
 # For backward compatibility

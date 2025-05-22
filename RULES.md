@@ -11,7 +11,6 @@
 2. **Development Environment**
    - Always use a virtual environment for development
    - Document all dependencies in `requirements.txt` and `requirements-dev.txt`
-   - Use the provided `setup_env.ps1` script for consistent environment setup
    - Keep the `.env.example` file updated with all available configuration options
 
 3. **Simplicity**

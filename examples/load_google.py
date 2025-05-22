@@ -87,16 +87,15 @@ def main() -> None:
             user_data_dir=user_data_dir,
             profile_directory=args.profile,
             use_existing_profile=True,
-            enable_password_manager=args.password_manager,
-            enable_password_manager_prompts=args.prompts,
-            prevent_instance_interference=True,  # This prevents interference with existing Chrome instances
-            chrome_args=[
+            extra_args=[
                 # Additional Chrome arguments can be added here
+                '--disable-notifications',
+                '--disable-infobars',
             ]
         )
         
         logger.info("Initializing browser with profile...")
-        browser = Browser(config=config)
+        browser = ChromeBrowser(config=config)
         
         try:
             # Start the browser
@@ -105,11 +104,17 @@ def main() -> None:
             
             # Navigate to the specified URL
             logger.info(f"Navigating to {args.url}...")
-            browser.navigate_to(args.url)
+            browser.driver.get(args.url)
             
             # Get current URL and page info
-            logger.info(f"Current URL: {browser.get_current_url()}")
+            current_url = browser.driver.current_url
+            logger.info(f"Current URL: {current_url}")
             logger.info("Page loaded successfully")
+            
+            # Take a screenshot
+            screenshot_file = 'screenshot.png'
+            logger.info(f"Taking screenshot: {screenshot_file}")
+            browser.driver.save_screenshot(screenshot_file)
             
             # Keep the browser open for a few seconds to see the result
             logger.info("Browser will close in 5 seconds...")

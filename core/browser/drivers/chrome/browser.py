@@ -1,12 +1,10 @@
 """Chrome browser implementation."""
+from __future__ import annotations
+
 import logging
 import os
 import time
 from pathlib import Path
-from __future__ import annotations
-
-import logging
-import time
 from typing import Any, Dict, List, Optional, Union, Type, TypeVar, Generic, TYPE_CHECKING
 
 from selenium import webdriver

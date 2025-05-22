@@ -12,7 +12,7 @@ from selenium.common.exceptions import (
     TimeoutException
 )
 
-from .exceptions import (
+from ..exceptions import (
     ElementNotFoundError,
     ElementNotInteractableError,
     TimeoutError as BrowserTimeoutError

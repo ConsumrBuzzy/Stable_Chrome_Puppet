@@ -1,10 +1,30 @@
-# Chrome Puppet
-
-> **Automate Chrome with confidence** - A robust, production-ready browser automation framework
-
-[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+<div align="center">
+  <h1>Chrome Puppet</h1>
+  <p>
+    <strong>Automate Chrome with confidence</strong> - A robust, production-ready browser automation framework
+  </p>
+  
+  <p>
+    <a href="https://pypi.org/project/chrome-puppet/" target="_blank">
+      <img alt="PyPI" src="https://img.shields.io/pypi/v/chrome-puppet?color=blue">
+    </a>
+    <a href="https://www.python.org/downloads/" target="_blank">
+      <img alt="Python Version" src="https://img.shields.io/pypi/pyversions/chrome-puppet?color=blue">
+    </a>
+    <a href="https://github.com/ConsumrBuzzy/Stable_Chrome_Puppet/actions" target="_blank">
+      <img alt="Tests" src="https://github.com/ConsumrBuzzy/Stable_Chrome_Puppet/actions/workflows/test.yml/badge.svg">
+    </a>
+    <a href="https://codecov.io/gh/ConsumrBuzzy/Stable_Chrome_Puppet" target="_blank">
+      <img alt="Codecov" src="https://codecov.io/gh/ConsumrBuzzy/Stable_Chrome_Puppet/branch/main/graph/badge.svg?token=YOUR-TOKEN">
+    </a>
+    <a href="https://opensource.org/licenses/MIT" target="_blank">
+      <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg">
+    </a>
+    <a href="https://github.com/psf/black" target="_blank">
+      <img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg">
+    </a>
+  </p>
+</div>
 
 Chrome Puppet is a Python framework that makes browser automation simple and reliable. Built on top of Selenium, it provides a clean, intuitive API for automating Chrome/Chromium browsers with built-in best practices for stability and maintainability.
 

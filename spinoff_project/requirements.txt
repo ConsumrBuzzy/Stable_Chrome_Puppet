@@ -1,0 +1,9 @@
+# Core Dependencies
+selenium>=4.11.2
+webdriver-manager>=4.0.1
+
+# Type Hints
+typing-extensions>=4.7.1
+
+# Logging
+loguru>=0.7.0

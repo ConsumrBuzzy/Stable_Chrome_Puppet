@@ -1,5 +1,4 @@
-"""
-Browser automation interface and implementations.
+"""Browser automation interface and implementations.
 
 This module provides a high-level interface for browser automation
 with specific implementations for different browsers.

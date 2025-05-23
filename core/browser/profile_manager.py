@@ -172,11 +172,124 @@ class ProfileManager:
         Returns:
             str: Profile type ('system', 'development', or 'user')
         """
-        if any(profile_name.startswith(p) or profile_name == p for p in self.SYSTEM_PROFILES):
+        if any(profile_name == p for p in self.IGNORED_PROFILES):
             return 'system'
         elif any(x in profile_name.lower() for x in ['dev', 'test', 'staging', 'local']):
             return 'development'
         return 'user'
+        
+    def _get_web_data_info(self, profile_path: Path, info: Dict[str, Any]) -> None:
+        """Extract information from Web Data database."""
+        web_data_path = profile_path / 'Web Data'
+        if not web_data_path.exists():
+            return
+            
+        try:
+            import sqlite3
+            conn = sqlite3.connect(f'file:{web_data_path}?mode=ro', uri=True)
+            cursor = conn.cursor()
+            
+            # Get autofill profiles
+            try:
+                cursor.execute('SELECT COUNT(*) FROM autofill_profiles')
+                info['autofill_count'] = cursor.fetchone()[0] or 0
+            except sqlite3.OperationalError:
+                pass
+                
+            # Get credit cards
+            try:
+                cursor.execute('SELECT COUNT(*) FROM credit_cards')
+                info['credit_card_count'] = cursor.fetchone()[0] or 0
+            except sqlite3.OperationalError:
+                pass
+                
+            conn.close()
+            
+        except Exception as e:
+            logger.debug(f"Error reading Web Data: {e}")
+    
+    def _get_history_info(self, profile_path: Path, info: Dict[str, Any]) -> None:
+        """Extract information from History database."""
+        history_path = profile_path / 'History'
+        if not history_path.exists():
+            return
+            
+        try:
+            import sqlite3
+            from datetime import datetime, timedelta
+            
+            conn = sqlite3.connect(f'file:{history_path}?mode=ro', uri=True)
+            cursor = conn.cursor()
+            
+            # Get total history items
+            try:
+                cursor.execute('SELECT COUNT(*) FROM urls')
+                info['history_count'] = cursor.fetchone()[0] or 0
+                
+                # Get last visit time
+                cursor.execute('SELECT last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT 1')
+                last_visit = cursor.fetchone()
+                if last_visit and last_visit[0]:
+                    # Convert Chrome time (microseconds since 1601) to datetime
+                    epoch_start = datetime(1601, 1, 1)
+                    last_visit_dt = epoch_start + timedelta(microseconds=last_visit[0])
+                    info['last_visit_time'] = last_visit_dt.isoformat()
+                    
+            except sqlite3.OperationalError as e:
+                logger.debug(f"Error reading history: {e}")
+                
+            conn.close()
+            
+        except Exception as e:
+            logger.debug(f"Error reading History: {e}")
+    
+    def _get_login_data_info(self, profile_path: Path, info: Dict[str, Any]) -> None:
+        """Extract information from Login Data database."""
+        login_data_path = profile_path / 'Login Data'
+        if not login_data_path.exists():
+            return
+            
+        try:
+            import sqlite3
+            conn = sqlite3.connect(f'file:{login_data_path}?mode=ro', uri=True)
+            cursor = conn.cursor()
+            
+            try:
+                cursor.execute('SELECT COUNT(*) FROM logins')
+                info['login_data_count'] = cursor.fetchone()[0] or 0
+            except sqlite3.OperationalError:
+                pass
+                
+            conn.close()
+            
+        except Exception as e:
+            logger.debug(f"Error reading Login Data: {e}")
+    
+    def _get_bookmark_info(self, profile_path: Path, info: Dict[str, Any]) -> None:
+        """Extract information from Bookmarks file."""
+        bookmarks_path = profile_path / 'Bookmarks'
+        if not bookmarks_path.exists():
+            return
+            
+        try:
+            with open(bookmarks_path, 'r', encoding='utf-8') as f:
+                bookmarks = json.load(f)
+                
+            def count_bookmarks(node):
+                count = 0
+                if 'children' in node:
+                    for child in node['children']:
+                        count += count_bookmarks(child)
+                if 'type' in node and node['type'] == 'url':
+                    return 1
+                return count
+                
+            if 'roots' in bookmarks:
+                for root in bookmarks['roots'].values():
+                    info['bookmark_count'] += count_bookmarks(root)
+                    
+        except Exception as e:
+            logger.debug(f"Error reading bookmarks: {e}")
     
     def _get_profile_info(self, profile_path: Path) -> Dict[str, Any]:
         """Get additional information about a profile.
@@ -185,32 +298,54 @@ class ProfileManager:
             profile_path: Path to the profile directory
             
         Returns:
-            Dict containing profile information with the following keys:
-            - name: The directory name of the profile
-            - path: Full path to the profile directory
-            - size_mb: Size of the profile in MB
-            - email: Email associated with the profile (if any)
-            - display_name: User-friendly name for the profile
-            - last_modified: Timestamp of when the profile was last modified
-            - profile_type: Type of profile (user, development, system)
-            - account_info: Additional account information if available
+            Dict containing detailed profile information including:
+            - Basic info (name, path, size, type)
+            - Account information (emails, names)
+            - Browser settings and extensions
+            - History and bookmark statistics
         """
+        # Initialize info with default values
+        info = {
+            # Basic info
+            'name': profile_path.name,
+            'path': str(profile_path.absolute()),
+            'size_mb': 0,
+            'last_modified': 0,
+            'profile_type': self._get_profile_type(profile_path.name),
+            'is_valid': True,
+            
+            # Account information
+            'email': None,
+            'emails': [],
+            'account_info': {},
+            'display_name': profile_path.name,
+            'avatar_icon': None,
+            
+            # Browser state
+            'extensions': [],
+            'last_browser_close_time': None,
+            'session_startup_urls': [],
+            'was_clean_shutdown': True,
+            'last_visit_time': None,
+            
+            # Statistics
+            'bookmark_count': 0,
+            'history_count': 0,
+            'login_data_count': 0,
+            'autofill_count': 0,
+            'credit_card_count': 0,
+            
+            # Additional metadata
+            'metadata': {}
+        }
+        
         try:
             # Get basic file info
             stat_info = profile_path.stat()
-            
-            # Initialize info with default values
-            info = {
-                'name': profile_path.name,
-                'path': str(profile_path.absolute()),
+            info.update({
                 'size_mb': self._get_directory_size(profile_path) / (1024 * 1024),
-                'email': None,
-                'emails': [],  # List to store all found emails
-                'display_name': None,
-                'last_modified': stat_info.st_mtime,
-                'profile_type': self._get_profile_type(profile_path.name),
-                'account_info': {}
-            }
+                'last_modified': stat_info.st_mtime
+            })
             
             # Set a default display name based on the profile directory name
             if profile_path.name == 'Default':
@@ -221,108 +356,117 @@ class ProfileManager:
                     info['display_name'] = f'Profile {profile_num}'
                 except (IndexError, ValueError):
                     info['display_name'] = profile_path.name
-            else:
-                info['display_name'] = profile_path.name
             
-            # Try to get additional info from preferences file
+            # Check if this is a valid Chrome profile
             prefs_file = profile_path / 'Preferences'
-            if prefs_file.exists() and prefs_file.stat().st_size > 0:
-                try:
-                    with open(prefs_file, 'r', encoding='utf-8', errors='replace') as f:
-                        try:
-                            prefs = json.load(f)
-                        except json.JSONDecodeError as e:
-                            logger.warning(f"Failed to parse Preferences file {prefs_file}: {e}")
-                            prefs = {}
-                        
-                        # Get email and name from sync account info
-                        if 'profile' in prefs and 'info_cache' in prefs['profile']:
-                            for account_id, cache in prefs['profile']['info_cache'].items():
-                                account_email = cache.get('email')
-                                if account_email:
-                                    account_email = str(account_email)
-                                    info['emails'].append(account_email)
-                                    if not info['email']:  # Set the first email as primary
-                                        info['email'] = account_email
-                                
-                                # Get account name if available
-                                if 'name' in cache and cache['name']:
-                                    name = str(cache['name'])
-                                    if not info.get('display_name') or info['display_name'].startswith(('Profile ', 'Default')):
-                                        info['display_name'] = name
-                                    info['account_info'][account_id] = {
-                                        'email': account_email,
-                                        'name': name,
-                                        'gaia': cache.get('gaia'),
-                                        'is_consented_primary_account': cache.get('is_consented_primary_account', False)
-                                    }
-                        
-                        # Get display name from profile info if not set yet
-                        if not info.get('display_name') and 'profile' in prefs:
-                            profile_name = prefs['profile'].get('name')
-                            if profile_name and not str(profile_name).startswith('Profile '):
-                                info['display_name'] = str(profile_name)
-                        
-                        # Check for accounts in the account tracker
-                        if 'account_tracker' in prefs:
-                            accounts = prefs.get('account_tracker', {})
-                            for account_id, account in accounts.items():
-                                if isinstance(account, dict) and 'account_id' in account:
-                                    email = account.get('email')
-                                    if email and email not in info['emails']:
-                                        info['emails'].append(email)
-                                        if not info['email']:
-                                            info['email'] = email
+            if not prefs_file.exists():
+                info['is_valid'] = False
+                return info
                 
-                except Exception as e:
-                    logger.warning(f"Error reading profile preferences for {profile_path.name}: {e}", exc_info=True)
-            
-            # Check for additional account information in other files
+            # Parse Preferences file
             try:
-                # Check Web Data database for more account info
-                web_data_path = profile_path / 'Web Data'
-                if web_data_path.exists():
-                    try:
-                        import sqlite3
-                        conn = sqlite3.connect(f'file:{web_data_path}?mode=ro', uri=True)
-                        cursor = conn.cursor()
-                        
-                        # Check autofill profiles for names and emails
-                        try:
-                            cursor.execute('SELECT name, email FROM autofill_profiles')
-                            for name, email in cursor.fetchall():
-                                if email and email not in info['emails']:
-                                    info['emails'].append(email)
-                                    if not info['email']:
-                                        info['email'] = email
-                                if name and not info.get('display_name'):
-                                    info['display_name'] = name
-                        except sqlite3.OperationalError:
-                            pass  # Table might not exist
+                with open(prefs_file, 'r', encoding='utf-8', errors='replace') as f:
+                    prefs = json.load(f)
+                
+                # Extract account information
+                if 'profile' in prefs:
+                    # Get profile metadata
+                    profile_data = prefs.get('profile', {})
+                    info['metadata'].update({
+                        'created_time': profile_data.get('creation_time'),
+                        'name': profile_data.get('name'),
+                        'avatar_index': profile_data.get('avatar_index'),
+                        'is_using_default_avatar': profile_data.get('is_using_default_avatar'),
+                        'is_using_default_name': profile_data.get('is_using_default_name'),
+                    })
+                    
+                    # Get sync account info
+                    if 'info_cache' in profile_data:
+                        for account_id, cache in profile_data['info_cache'].items():
+                            if not isinstance(cache, dict):
+                                continue
+                                
+                            account_info = {
+                                'email': cache.get('email'),
+                                'name': cache.get('name'),
+                                'gaia': cache.get('gaia'),
+                                'is_consented_primary_account': cache.get('is_consented_primary_account'),
+                                'account_image': cache.get('account_image'),
+                                'is_advanced_protection': cache.get('is_advanced_protection'),
+                                'is_under_advanced_protection': cache.get('is_under_advanced_protection'),
+                                'account_categories': cache.get('account_categories', []),
+                                'is_child_account': cache.get('is_child_account'),
+                                'is_opted_in_to_parental_supervision': cache.get('is_opted_in_to_parental_supervision'),
+                                'is_subject_to_parental_controls': cache.get('is_subject_to_parental_controls')
+                            }
+                            info['account_info'][account_id] = account_info
                             
-                        conn.close()
-                    except Exception as e:
-                        logger.debug(f"Could not read Web Data for {profile_path.name}: {e}")
+                            # Add email to the emails list if not already present
+                            if account_info['email'] and account_info['email'] not in info['emails']:
+                                info['emails'].append(account_info['email'])
+                                info['email'] = info['email'] or account_info['email']
+                            
+                            # Set display name from account if not set
+                            if account_info['name'] and (not info['display_name'] or info['display_name'].startswith(('Profile ', 'Default'))):
+                                info['display_name'] = account_info['name']
+                
+                # Get browser state
+                browser_info = prefs.get('browser', {})
+                info.update({
+                    'was_clean_shutdown': browser_info.get('was_clean_shutdown', True),
+                    'last_browser_close_time': browser_info.get('last_clear_browsing_time'),
+                    'session_startup_urls': browser_info.get('session', {}).get('startup_urls', [])
+                })
+                
+                # Get avatar icon if available
+                if 'profile' in prefs and 'last_used' in prefs['profile']:
+                    info['avatar_icon'] = f'chrome://theme/IDR_PROFILE_AVATAR_{prefs["profile"]["last_used"]}'
+                
+                # Get extensions info
+                if 'extensions' in prefs:
+                    extensions = prefs.get('extensions', {})
+                    if 'settings' in extensions:
+                        info['extensions'] = list(extensions['settings'].keys())
+                
             except Exception as e:
-                logger.debug(f"Error checking Web Data for {profile_path.name}: {e}")
+                logger.warning(f"Error reading profile preferences for {profile_path.name}: {e}", exc_info=True)
             
+            # Extract additional information from other profile files
+            try:
+                # Get Web Data info (autofill, credit cards)
+                self._get_web_data_info(profile_path, info)
+                
+                # Get history info
+                self._get_history_info(profile_path, info)
+                
+                # Get login data info
+                self._get_login_data_info(profile_path, info)
+                
+                # Get bookmark info
+                self._get_bookmark_info(profile_path, info)
+                
+            except Exception as e:
+                logger.warning(f"Error reading additional profile data for {profile_path.name}: {e}", exc_info=True)
+            
+            # Clean up and finalize the info
+            if info['emails'] and not info['email']:
+                info['email'] = info['emails'][0]
+                
+            if not info['display_name'] and info['email']:
+                info['display_name'] = info['email'].split('@')[0].replace('.', ' ').title()
+                
             # Ensure all string fields are properly encoded
             for field in ['name', 'display_name', 'email', 'path']:
-                if field in info and info[field] is not None:
-                    if isinstance(info[field], str):
-                        info[field] = info[field].encode('utf-8', 'replace').decode('utf-8')
-            
+                if info.get(field) and isinstance(info[field], str):
+                    info[field] = info[field].encode('utf-8', 'replace').decode('utf-8')
+                    
             # Clean up emails list
             info['emails'] = [str(e) for e in info['emails'] if e and isinstance(e, str)]
             
-            # If we have emails but no display name, use the first part of the first email
-            if not info.get('display_name') and info['emails']:
-                info['display_name'] = info['emails'][0].split('@')[0].replace('.', ' ').title()
-            
-            return info
-            
         except Exception as e:
-            logger.warning(f"Error getting info for profile {profile_path.name}: {e}", exc_info=True)
+            logger.error(f"Error getting profile info for {profile_path}: {e}", exc_info=True)
+            info['is_valid'] = False
+            
             # Return basic info even if we can't read all details
             return {
                 'name': str(profile_path.name),
@@ -331,8 +475,11 @@ class ProfileManager:
                 'email': None,
                 'display_name': str(profile_path.name),
                 'last_modified': 0,
-                'profile_type': self._get_profile_type(profile_path.name)
+                'profile_type': self._get_profile_type(profile_path.name),
+                'is_valid': False
             }
+            
+        return info
     
     @staticmethod
     def _get_directory_size(path: Path) -> int:
